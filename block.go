@@ -129,7 +129,7 @@ func (b *Block[T]) Build(format string) {
 }
 
 func (b *Block[T]) col() {
-	builder := &GraphBuilder{graph: b.Graph}
+	builder := &NavBuilder{graph: b.Graph}
 	rows := len(b.Items)
 
 	for i := range b.Items {
@@ -147,7 +147,7 @@ func (b *Block[T]) col() {
 }
 
 func (b *Block[T]) bar() {
-	builder := &GraphBuilder{graph: b.Graph}
+	builder := &NavBuilder{graph: b.Graph}
 	cols := len(b.Items)
 
 	for i := range b.Items {

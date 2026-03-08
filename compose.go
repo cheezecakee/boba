@@ -60,7 +60,7 @@ func (c *Compose) Row(blocks ...BlockView) {
 			c.cursor = cursor
 		}
 
-		builder := &GraphBuilder{graph: c.graph}
+		builder := &NavBuilder{graph: c.graph}
 
 		if _, exists := c.index[b]; !exists {
 			c.blocks[cursor] = b

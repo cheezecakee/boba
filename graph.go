@@ -2,27 +2,27 @@ package boba
 
 //================= GRAPH BUILDER ===================//
 
-type GraphBuilder struct {
+type NavBuilder struct {
 	graph *Graph
 }
 
-func (b *GraphBuilder) Node(c Cursor, meta NodeMeta) *GraphBuilder {
+func (b *NavBuilder) Node(c Cursor, meta NodeMeta) *NavBuilder {
 	b.graph.AddNode(c, meta)
 	return b
 }
 
-func (b *GraphBuilder) Edge(from Cursor, dir Direction, to Cursor) *GraphBuilder {
+func (b *NavBuilder) Edge(from Cursor, dir Direction, to Cursor) *NavBuilder {
 	b.graph.Connect(from, dir, to)
 	return b
 }
 
-func (b *GraphBuilder) BiEdge(a Cursor, dir Direction, bCursor Cursor) *GraphBuilder {
+func (b *NavBuilder) BiEdge(a Cursor, dir Direction, bCursor Cursor) *NavBuilder {
 	b.graph.Connect(a, dir, bCursor)
 	b.graph.Connect(bCursor, invert(dir), a)
 	return b
 }
 
-func (b *GraphBuilder) Build() *Graph {
+func (b *NavBuilder) Build() *Graph {
 	return b.graph
 }
 
