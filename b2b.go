@@ -2,18 +2,31 @@ package boba
 
 import tea "charm.land/bubbletea/v2"
 
-type B2BMsg struct {
-	From    Cursor
-	To      Cursor
-	Payload any
+type Receiver interface {
+	Receive(tea.Cmd) tea.Cmd
 }
 
-func B2BSend(from, to Cursor, payload any) tea.Cmd {
+type B2BMsg struct {
+	From    BlockView
+	To      []BlockView
+	Send    tea.Cmd
+	Receive tea.Cmd
+}
+
+type B2BSendMsg struct {
+	Cmd tea.Cmd
+}
+
+type B2BReceiveMsg struct {
+	Cmd tea.Cmd
+}
+
+func B2BCmd(to []BlockView, send, receive tea.Cmd) tea.Cmd {
 	return func() tea.Msg {
 		return B2BMsg{
-			From:    from,
 			To:      to,
-			Payload: payload,
+			Send:    send,
+			Receive: receive,
 		}
 	}
 }
