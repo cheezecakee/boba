@@ -18,6 +18,7 @@ type model[T BubbleModel[T]] struct {
 }
 
 type Block[T BubbleModel[T]] struct {
+	name       string
 	Items      Items
 	Graph      *Graph
 	size       Size
@@ -28,7 +29,7 @@ type Block[T BubbleModel[T]] struct {
 	model      *model[T]
 }
 
-func NewBlock[T BubbleModel[T]](width, height int, selection SelectionType, model ...T) *Block[T] {
+func NewBlock[T BubbleModel[T]](name string, width, height int, selection SelectionType, model ...T) *Block[T] {
 	var s Selection
 	switch selection {
 	case NoSelection:
@@ -40,6 +41,7 @@ func NewBlock[T BubbleModel[T]](width, height int, selection SelectionType, mode
 	}
 
 	b := &Block[T]{
+		name:      name,
 		Items:     Items{},
 		Graph:     NewGraph(),
 		size:      Size{Width: width, Height: height},
@@ -86,6 +88,10 @@ func (b *Block[T]) Size() Size {
 	return b.size
 }
 
+func (b *Block[T]) Name() string {
+	return b.name
+}
+
 // Selection
 
 func (b *Block[T]) Select() {
@@ -109,6 +115,7 @@ func (b *Block[T]) Selected() *Item {
 }
 
 // Graph builders for custom models
+// Currently only supports vertical and horizontal builds
 
 func (b *Block[T]) Build(format string) {
 	switch format {
