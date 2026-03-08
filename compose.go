@@ -13,20 +13,11 @@ type BlockView interface {
 	Move(Direction) bool
 	Current() Cursor
 	Size() Size
+	Name() string
 
 	Init() tea.Cmd
 	Update(tea.Msg) (tea.Model, tea.Cmd)
 	View() tea.View
-}
-
-type Blank struct {
-	size Size
-}
-
-func NewBlankBlock(width, height int) *Blank {
-	return &Blank{
-		size: Size{width, height},
-	}
 }
 
 type State struct {
@@ -125,8 +116,13 @@ func (c *Compose) Focused() BlockView {
 	return c.blocks[c.cursor]
 }
 
-func (c *Compose) Block(cursor Cursor) BlockView {
-	return c.blocks[cursor]
+func (c *Compose) Block(name string) BlockView {
+	for b := range c.index {
+		if b.Name() == name {
+			return b
+		}
+	}
+	return nil
 }
 
 func (c *Compose) Layout() string {
@@ -184,13 +180,7 @@ func (c *Compose) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			c.Move(dir)
 			return c, nil
 		}
-	case B2BMsg:
-		block := c.blocks[msg.To]
-		m, cmd := block.Update(msg)
-		c.blocks[msg.To] = m.(BlockView)
-		return c, cmd
 	}
-
 	block := c.blocks[c.cursor]
 	m, cmd := block.Update(msg)
 	c.blocks[c.cursor] = m.(BlockView)
