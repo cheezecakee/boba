@@ -40,10 +40,15 @@ func NewBlock[T BubbleModel[T]](name string, width, height int, selection Select
 		s = &multi{}
 	}
 
+	var graph *Graph
+	if len(model) <= 0 {
+		graph = NewGraph()
+	}
+
 	b := &Block[T]{
 		name:      name,
 		Items:     Items{},
-		Graph:     NewGraph(),
+		Graph:     graph,
 		size:      Size{Width: width, Height: height},
 		selection: s,
 		cursor:    Cursor{Row: 0, Col: 0},
