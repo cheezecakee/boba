@@ -40,6 +40,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.height = msg.Height
 		SetStyle(a.width, a.height)
 
+	case SelectedItemMsg:
+		newScreen, cmd := ExecItem(a.current, &msg.Item)
+		if newScreen != a.current {
+			a.push(newScreen)
+		}
+		return a, cmd
+
 	case tea.KeyPressMsg:
 		if key.Matches(msg, Keys.Quit) {
 			return a, tea.Quit
