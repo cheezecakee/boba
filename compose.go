@@ -25,20 +25,20 @@ type State struct {
 	Direction
 }
 
-type Rows []BlockView
+type BlockRow []BlockView
 
-type Compose struct {
+type Composite struct {
 	graph  *Graph
 	blocks map[Cursor]BlockView
 	index  map[BlockView]Cursor
-	layout []Rows
+	layout []BlockRow
 	cursor Cursor
 	state  State
 	row    int
 }
 
-func NewCompose() *Compose {
-	return &Compose{
+func newCompose() *Composite {
+	return &Composite{
 		graph:  NewGraph(),
 		blocks: make(map[Cursor]BlockView),
 		index:  make(map[BlockView]Cursor),
@@ -46,8 +46,20 @@ func NewCompose() *Compose {
 	}
 }
 
-func (c *Compose) Row(blocks ...BlockView) {
-	var rows Rows
+func Add(blocks ...BlockView) BlockRow {
+	return BlockRow(blocks)
+}
+
+func Compose(rows ...BlockRow) *Composite {
+	c := newCompose()
+	for _, row := range rows {
+		c.addRow(row...)
+	}
+	return c
+}
+
+func (c *Composite) addRow(blocks ...BlockView) {
+	var rows BlockRow
 	for col, b := range blocks {
 		if _, exists := c.index[b]; !exists {
 			rows = append(rows, b)
@@ -108,15 +120,15 @@ func (c *Compose) Row(blocks ...BlockView) {
 	c.row++
 }
 
-func (c *Compose) Cursor(b BlockView) Cursor {
+func (c *Composite) Cursor(b BlockView) Cursor {
 	return c.index[b]
 }
 
-func (c *Compose) Focused() BlockView {
+func (c *Composite) Focused() BlockView {
 	return c.blocks[c.cursor]
 }
 
-func (c *Compose) Block(name string) BlockView {
+func (c *Composite) Block(name string) BlockView {
 	for b := range c.index {
 		if b.Name() == name {
 			return b
@@ -125,14 +137,14 @@ func (c *Compose) Block(name string) BlockView {
 	return nil
 }
 
-func (c *Compose) Layout() string {
+func (c *Composite) Layout() string {
 	layout := fmt.Sprintf("%+v\n", c.layout)
 	return layout
 }
 
 // Navigation
 
-func (c *Compose) Move(dir Direction) {
+func (c *Composite) Move(dir Direction) {
 	current := c.blocks[c.cursor]
 	if current.Move(dir) {
 		return
@@ -169,11 +181,11 @@ func (c *Compose) Move(dir Direction) {
 
 // tea.Model
 
-func (c *Compose) Init() tea.Cmd {
+func (c *Composite) Init() tea.Cmd {
 	return nil
 }
 
-func (c *Compose) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (c *Composite) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if dir, ok := FocusDirKey(msg); ok {
@@ -215,7 +227,7 @@ type segment struct {
 	y  int
 }
 
-func (c *Compose) View() tea.View {
+func (c *Composite) View() tea.View {
 	var layers []*lipgloss.Layer
 
 	startX := 0
