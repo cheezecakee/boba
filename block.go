@@ -1,8 +1,6 @@
 package boba
 
 import (
-	"fmt"
-
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -19,7 +17,7 @@ type model[T BubbleModel[T]] struct {
 
 type Block[T BubbleModel[T]] struct {
 	name       string
-	Items      Items
+	items      Items
 	Graph      *Graph
 	size       Size
 	selection  Selection
@@ -47,7 +45,6 @@ func NewBlock[T BubbleModel[T]](name string, width, height int, selection Select
 
 	b := &Block[T]{
 		name:      name,
-		Items:     Items{},
 		Graph:     graph,
 		size:      Size{Width: width, Height: height},
 		selection: s,
@@ -78,6 +75,9 @@ func (b *Block[T]) Focused() bool {
 // Navigation
 
 func (b *Block[T]) Move(dir Direction) bool {
+	if b.Graph == nil {
+		return false
+	}
 	next, ok := b.Graph.Move(b.cursor, dir)
 	if ok {
 		b.cursor = next
@@ -97,6 +97,16 @@ func (b *Block[T]) Name() string {
 	return b.name
 }
 
+func (b *Block[T]) SetItems(items Items) *Block[T] {
+	b.items = items
+	if b.model != nil {
+		if c, ok := any(b.model.current).(Component); ok {
+			c.SetItems(items)
+		}
+	}
+	return b
+}
+
 // Selection
 
 func (b *Block[T]) Select() {
@@ -110,34 +120,26 @@ func (b *Block[T]) IsSelected(c Cursor) bool {
 }
 
 func (b *Block[T]) Selected() *Item {
-	if len(b.Items) == 0 {
+	if len(b.items) == 0 {
 		return nil
 	}
 	if b.horizontal {
-		return &b.Items[int(b.cursor.Col)]
+		return &b.items[int(b.cursor.Col)]
 	}
-	return &b.Items[int(b.cursor.Row)]
+	return &b.items[int(b.cursor.Row)]
 }
 
 // Graph builders for custom models
 // Currently only supports vertical and horizontal builds
 
-func (b *Block[T]) Build(format string) {
-	switch format {
-	case "bar":
-		b.bar()
-	case "col":
-		b.col()
-	default:
-		fmt.Println("invalid format type")
+func (b *Block[T]) Vertical() *Block[T] {
+	if b.model != nil {
+		return b
 	}
-}
-
-func (b *Block[T]) col() {
 	builder := &NavBuilder{graph: b.Graph}
-	rows := len(b.Items)
+	rows := len(b.items)
 
-	for i := range b.Items {
+	for i := range b.items {
 		cursor := Cursor{Row: Row(i), Col: 0}
 		builder.Node(cursor, NodeMeta{Enabled: true})
 	}
@@ -149,13 +151,17 @@ func (b *Block[T]) col() {
 	}
 
 	b.Graph = builder.Build()
+	return b
 }
 
-func (b *Block[T]) bar() {
+func (b *Block[T]) Horizontal() *Block[T] {
+	if b.model != nil {
+		return b
+	}
 	builder := &NavBuilder{graph: b.Graph}
-	cols := len(b.Items)
+	cols := len(b.items)
 
-	for i := range b.Items {
+	for i := range b.items {
 		cursor := Cursor{Row: 0, Col: Col(i)}
 		builder.Node(cursor, NodeMeta{Enabled: true})
 	}
@@ -168,6 +174,7 @@ func (b *Block[T]) bar() {
 
 	b.Graph = builder.Build()
 	b.horizontal = true
+	return b
 }
 
 // Pre-existing Models
@@ -187,10 +194,10 @@ func (b *Block[T]) Model() *T {
 // Render
 
 func (b *Block[T]) render() string {
-	rendered := make([]string, len(b.Items))
+	rendered := make([]string, len(b.items))
 	style := GetStyle()
 
-	for i, item := range b.Items {
+	for i, item := range b.items {
 		var cursor Cursor
 		if b.horizontal {
 			cursor = Cursor{Row: 0, Col: Col(i)}
@@ -214,13 +221,31 @@ func (b *Block[T]) render() string {
 // tea.Model
 
 func (b *Block[T]) Init() tea.Cmd {
+	if b.model != nil {
+		// Seed items into the component
+		if c, ok := any(&b.model.current).(Component); ok {
+			c.SetItems(b.items)
+		}
+	}
 	return nil
 }
 
 func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
+	if _, ok := msg.(SelectedItemMsg); ok {
+		return b, func() tea.Msg { return msg }
+	}
+
 	if b.model != nil {
+		switch msg := msg.(type) {
+		case SelectedItemMsg:
+			return b, func() tea.Msg { return msg }
+		case CursorMsg:
+			b.cursor = msg.Cursor
+			return b, nil
+		}
+
 		var m T
 		m, cmd = b.model.current.Update(msg)
 		b.model.current = m
@@ -232,8 +257,12 @@ func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if dir, ok := DirKey(msg); ok {
 			b.Move(dir)
 		}
-		if key.Matches(msg, Keys.Select) {
-			b.Select()
+		if key.Matches(msg, Keys.Submit) {
+			if item := b.Selected(); item != nil {
+				return b, func() tea.Msg {
+					return SelectedItemMsg{Item: *item}
+				}
+			}
 		}
 	}
 
