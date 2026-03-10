@@ -3,7 +3,6 @@ package boba
 import (
 	"fmt"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -275,7 +274,7 @@ func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if dir, ok := DirKey(msg); ok {
 			b.Move(dir)
 		}
-		if key.Matches(msg, Keys.Submit) {
+		if Keys.Submit.Match(msg) {
 			if item := b.Selected(); item != nil {
 				return b, func() tea.Msg {
 					return SelectedItemMsg{Item: *item}

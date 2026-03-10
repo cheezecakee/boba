@@ -1,7 +1,6 @@
 package boba
 
 import (
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -54,10 +53,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case tea.KeyPressMsg:
-		if key.Matches(msg, Keys.Quit) {
+		if Keys.Quit.Match(msg) {
 			return a, tea.Quit
 		}
-		if key.Matches(msg, Keys.Back) {
+		if Keys.Back.Match(msg) {
 			a.pop()
 			return a, nil
 		}

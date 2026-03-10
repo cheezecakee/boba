@@ -2,7 +2,6 @@
 package component
 
 import (
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 
@@ -66,7 +65,7 @@ func (l *List) Update(msg tea.Msg) (*List, tea.Cmd) {
 	// Report selection to Block on submit
 	if selected, ok := l.model.SelectedItem().(listItem); ok {
 		if msg, ok := msg.(tea.KeyPressMsg); ok {
-			if key.Matches(msg, boba.Keys.Submit) {
+			if boba.Keys.Submit.Match(msg) {
 				selectedCmd := func() tea.Msg {
 					return boba.SelectedItemMsg{Item: selected.Item}
 				}

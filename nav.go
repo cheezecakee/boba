@@ -1,34 +1,33 @@
 package boba
 
 import (
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 )
 
-func DirKey(msg tea.KeyMsg) (Direction, bool) {
+func DirKey(msg tea.KeyPressMsg) (Direction, bool) {
 	switch {
-	case key.Matches(msg, Keys.Up):
+	case Keys.Navigation.Up.Match(msg):
 		return Top, true
-	case key.Matches(msg, Keys.Down):
+	case Keys.Navigation.Down.Match(msg):
 		return Down, true
-	case key.Matches(msg, Keys.Left):
+	case Keys.Navigation.Left.Match(msg):
 		return Left, true
-	case key.Matches(msg, Keys.Right):
+	case Keys.Navigation.Right.Match(msg):
 		return Right, true
 	default:
 		return Direction{}, false
 	}
 }
 
-func FocusDirKey(msg tea.KeyMsg) (Direction, bool) {
+func FocusDirKey(msg tea.KeyPressMsg) (Direction, bool) {
 	switch {
-	case key.Matches(msg, Keys.FocusUp):
+	case Keys.Focus.Up.Match(msg):
 		return Top, true
-	case key.Matches(msg, Keys.FocusDown):
+	case Keys.Focus.Down.Match(msg):
 		return Down, true
-	case key.Matches(msg, Keys.FocusLeft):
+	case Keys.Focus.Left.Match(msg):
 		return Left, true
-	case key.Matches(msg, Keys.FocusRight):
+	case Keys.Focus.Right.Match(msg):
 		return Right, true
 	default:
 		return Direction{}, false
