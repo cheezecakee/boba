@@ -1,109 +1,197 @@
 package boba
 
 import (
+	"fmt"
+
 	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+)
+
+type (
+	Key      key.Binding
+	keyIndex map[string]*Key
 )
 
 type KeyMap struct {
-	// Global
-	Quit        key.Binding
-	Back        key.Binding
-	Submit      key.Binding
-	ToggleFocus key.Binding
+	GlobalKeys
+	Navigation NavigationKeys
+	Focus      FocusKeys
+	Components ComponentKeys // List, Viewport etc. TODO will be added later
+	Custom     map[string]key.Binding
 
-	// Navigation
-	Up    key.Binding
-	Down  key.Binding
-	Left  key.Binding
-	Right key.Binding
+	index keyIndex
+}
 
-	// Focus Navigation
-	FocusUp    key.Binding
-	FocusDown  key.Binding
-	FocusLeft  key.Binding
-	FocusRight key.Binding
+type GlobalKeys struct {
+	Quit   Key
+	Back   Key
+	Submit Key
+	Select Key
+	Help   Key
+}
 
-	// Other Navigation
-	Next key.Binding
-	Prev key.Binding
+type NavigationKeys struct {
+	Up    Key
+	Down  Key
+	Left  Key
+	Right Key
 
-	// Extra
-	Select key.Binding
+	Next Key
+	Prev Key
+}
 
-	// Toggle help
-	Help key.Binding
+type FocusKeys struct {
+	Up     Key
+	Down   Key
+	Left   Key
+	Right  Key
+	Toggle Key // unbound by default
+}
+
+type ComponentKeys struct{}
+
+func (k Key) Match(msg tea.KeyPressMsg) bool {
+	return key.Matches(msg, key.Binding(k))
+}
+
+func (k *KeyMap) Bind(action string, keys ...string) error {
+	binding, ok := k.index[action]
+	if !ok {
+		return fmt.Errorf("unknown action: %s", action)
+	}
+
+	(*key.Binding)(binding).SetKeys(keys...)
+	return nil
+}
+
+func (k *KeyMap) Unbind(action string) error {
+	binding, ok := k.index[action]
+	if !ok {
+		return fmt.Errorf("unknown action: %s", action)
+	}
+	(*key.Binding)(binding).SetKeys()
+	return nil
+}
+
+func (k *KeyMap) NewBind(action string, binding key.Binding) error {
+	if _, ok := k.index[action]; ok {
+		return fmt.Errorf("action already exists: %s", action)
+	}
+
+	k.Custom[action] = binding
+	return nil
+}
+
+func (k *KeyMap) Is(msg tea.KeyPressMsg, action string) bool {
+	// looks up binding by dot path "global.quit", "navigation.up" etc.
+	// call key.Matches internally
+	if binding, ok := k.index[action]; ok {
+		return binding.Match(msg)
+	}
+	if binding, ok := k.Custom[action]; ok {
+		return key.Matches(msg, binding)
+	}
+	return false
+}
+
+func (k *KeyMap) buildIndex() keyIndex {
+	return keyIndex{
+		"quit":   &k.Quit,
+		"back":   &k.Back,
+		"submit": &k.Submit,
+		"select": &k.Select,
+		"help":   &k.Help,
+
+		"navigation.up":    &k.Navigation.Up,
+		"navigation.down":  &k.Navigation.Down,
+		"navigation.left":  &k.Navigation.Left,
+		"navigation.right": &k.Navigation.Right,
+		"navigation.next":  &k.Navigation.Next,
+		"navigation.prev":  &k.Navigation.Prev,
+
+		"focus.up":     &k.Focus.Up,
+		"focus.down":   &k.Focus.Down,
+		"focus.left":   &k.Focus.Left,
+		"focus.right":  &k.Focus.Right,
+		"focus.toggle": &k.Focus.Toggle,
+	}
 }
 
 func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Quit: key.NewBinding(
-			key.WithKeys("ctrl+c", "ctrl+q"),
-			key.WithHelp("ctrl+q", "quit"),
-		),
-		Back: key.NewBinding(
-			key.WithKeys("esc"),
-			key.WithHelp("esc", "back"),
-		),
-		Submit: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "submit"),
-		),
-
-		Next: key.NewBinding(
-			key.WithKeys("tab"),
-			key.WithHelp("tab", "next"),
-		),
-		Prev: key.NewBinding(
-			key.WithKeys("shift+tab"),
-			key.WithHelp("shift+tab", "prev"),
-		),
-		Up: key.NewBinding(
-			key.WithKeys("k", "up"),
-			key.WithHelp("↑/k", "move up"),
-		),
-		Down: key.NewBinding(
-			key.WithKeys("j", "down"),
-			key.WithHelp("↓/j", "move down"),
-		),
-		Left: key.NewBinding(
-			key.WithKeys("h", "left"),
-			key.WithHelp("←/h", "move left"),
-		),
-		Right: key.NewBinding(
-			key.WithKeys("l", "right"),
-			key.WithHelp("→/l", "move right"),
-		),
-
-		FocusUp: key.NewBinding(
-			key.WithKeys("ctrl+k"),
-			key.WithHelp("ctrl+k", "focus up"),
-		),
-		FocusDown: key.NewBinding(
-			key.WithKeys("ctrl+j"),
-			key.WithHelp("ctrl+j", "focus down"),
-		),
-		FocusLeft: key.NewBinding(
-			key.WithKeys("ctrl+h"),
-			key.WithHelp("ctrl+h", "focus left"),
-		),
-		FocusRight: key.NewBinding(
-			key.WithKeys("ctrl+l"),
-			key.WithHelp("ctrl+l", "focus right"),
-		),
-
-		Select: key.NewBinding(
-			key.WithKeys(" "),
-			key.WithHelp("space", "select"),
-		),
-
-		ToggleFocus: key.NewBinding(
-			key.WithKeys("shift+enter"),
-			key.WithHelp("shift+enter", "toggle focus"),
-		),
-
-		Help: key.NewBinding(
-			key.WithKeys("?"),
-			key.WithHelp("?", "toggle help"),
-		),
+	k := KeyMap{
+		GlobalKeys: GlobalKeys{
+			Quit: Key(key.NewBinding(
+				key.WithKeys("ctrl+c", "ctrl+q"),
+				key.WithHelp("ctrl+q", "quit"),
+			)),
+			Back: Key(key.NewBinding(
+				key.WithKeys("esc"),
+				key.WithHelp("esc", "back"),
+			)),
+			Submit: Key(key.NewBinding(
+				key.WithKeys("enter"),
+				key.WithHelp("enter", "submit"),
+			)),
+			Select: Key(key.NewBinding(
+				key.WithKeys(" "),
+				key.WithHelp("space", "select"),
+			)),
+			Help: Key(key.NewBinding(
+				key.WithKeys("?"),
+				key.WithHelp("?", "toggle help"),
+			)),
+		},
+		Navigation: NavigationKeys{
+			Up: Key(key.NewBinding(
+				key.WithKeys("k", "up"),
+				key.WithHelp("↑/k", "move up"),
+			)),
+			Down: Key(key.NewBinding(
+				key.WithKeys("j", "down"),
+				key.WithHelp("↓/j", "move down"),
+			)),
+			Left: Key(key.NewBinding(
+				key.WithKeys("h", "left"),
+				key.WithHelp("←/h", "move left"),
+			)),
+			Right: Key(key.NewBinding(
+				key.WithKeys("l", "right"),
+				key.WithHelp("→/l", "move right"),
+			)),
+			Next: Key(key.NewBinding(
+				key.WithKeys("tab"),
+				key.WithHelp("tab", "next"),
+			)),
+			Prev: Key(key.NewBinding(
+				key.WithKeys("shift+tab"),
+				key.WithHelp("shift+tab", "prev"),
+			)),
+		},
+		Focus: FocusKeys{
+			Up: Key(key.NewBinding(
+				key.WithKeys("ctrl+k"),
+				key.WithHelp("ctrl+k", "focus up"),
+			)),
+			Down: Key(key.NewBinding(
+				key.WithKeys("ctrl+j"),
+				key.WithHelp("ctrl+j", "focus down"),
+			)),
+			Left: Key(key.NewBinding(
+				key.WithKeys("ctrl+h"),
+				key.WithHelp("ctrl+h", "focus left"),
+			)),
+			Right: Key(key.NewBinding(
+				key.WithKeys("ctrl+l"),
+				key.WithHelp("ctrl+l", "focus right"),
+			)),
+			Toggle: Key(key.NewBinding(
+				key.WithHelp("", "toggle focus mode"),
+			)),
+		},
+		Components: ComponentKeys{},
+		Custom:     make(map[string]key.Binding),
 	}
+
+	k.index = k.buildIndex()
+	return k
 }
