@@ -29,6 +29,12 @@ func NewApp(screen ScreenFactory) *App {
 	}
 }
 
+func (a *App) Run() error {
+	p := tea.NewProgram(a)
+	_, err := p.Run()
+	return err
+}
+
 func (a *App) Init() tea.Cmd {
 	return a.current.Init()
 }
