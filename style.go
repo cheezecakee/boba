@@ -21,19 +21,40 @@ type Theme struct {
 	Background color.Color
 }
 
-// DefaultTheme returns the default boba color theme
-func DefaultTheme() Theme {
+//============ Default Themes ============//
+
+func DarkTheme() Theme {
 	return Theme{
-		Primary:   NewColor("205"),
-		Secondary: NewColor("86"),
-		Accent:    NewColor("205"),
-		Muted:     NewColor("240"),
-		Subtle:    NewColor("236"),
-		Danger:    NewColor("9"),
-		Warning:   NewColor("214"),
-		Success:   NewColor("10"),
-		Text:      NewColor("255"),
+		Primary:    NewColor("205"),
+		Secondary:  NewColor("86"),
+		Accent:     NewColor("205"),
+		Muted:      NewColor("240"),
+		Subtle:     NewColor("236"),
+		Danger:     NewColor("9"),
+		Warning:    NewColor("214"),
+		Success:    NewColor("10"),
+		Text:       NewColor("255"),
+		Background: NewColor("0"),
 	}
+}
+
+func LightTheme() Theme {
+	return Theme{
+		Primary:    NewColor("205"),
+		Secondary:  NewColor("26"),
+		Accent:     NewColor("205"),
+		Muted:      NewColor("250"),
+		Subtle:     NewColor("254"),
+		Danger:     NewColor("9"),
+		Warning:    NewColor("214"),
+		Success:    NewColor("2"),
+		Text:       NewColor("0"),
+		Background: NewColor("255"),
+	}
+}
+
+func DefaultTheme() Theme {
+	return DarkTheme()
 }
 
 // Style holds component styles built from the theme
@@ -70,9 +91,8 @@ type Style struct {
 	PopupContent lipgloss.Style
 }
 
-func NewStyle(width, height int) Style {
+func NewStyle(width, height int, theme Theme) Style {
 	size := Size{Width: width, Height: height}
-	theme := DefaultTheme()
 
 	return Style{
 		Size:  size,
@@ -159,9 +179,17 @@ func NewStyle(width, height int) Style {
 }
 
 func SetStyle(w, h int) {
-	style = NewStyle(w, h)
+	t := style.Theme
+	if t == (Theme{}) {
+		t = DefaultTheme()
+	}
+	style = NewStyle(w, h, t)
 }
 
 func GetStyle() *Style {
 	return &style
+}
+
+func SetTheme(t Theme) {
+	style = NewStyle(style.Size.Width, style.Size.Height, t)
 }
