@@ -1,6 +1,8 @@
 package boba
 
 import (
+	"fmt"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -24,6 +26,7 @@ type Block[T BubbleModel[T]] struct {
 	cursor     Cursor
 	focused    bool
 	horizontal bool
+	navigable  bool
 	model      *model[T]
 }
 
@@ -48,6 +51,7 @@ func NewBlock[T BubbleModel[T]](name string, width, height int, selection Select
 		Graph:     graph,
 		size:      Size{Width: width, Height: height},
 		selection: s,
+		navigable: true,
 		cursor:    Cursor{Row: 0, Col: 0},
 	}
 
@@ -75,7 +79,7 @@ func (b *Block[T]) Focused() bool {
 // Navigation
 
 func (b *Block[T]) Move(dir Direction) bool {
-	if b.Graph == nil {
+	if b.Graph == nil || !b.navigable {
 		return false
 	}
 	next, ok := b.Graph.Move(b.cursor, dir)
@@ -97,6 +101,10 @@ func (b *Block[T]) Name() string {
 	return b.name
 }
 
+func (b *Block[T]) Navigable() bool {
+	return b.navigable
+}
+
 func (b *Block[T]) SetItems(items Items) *Block[T] {
 	b.items = items
 	if b.model != nil {
@@ -104,6 +112,17 @@ func (b *Block[T]) SetItems(items Items) *Block[T] {
 			c.SetItems(items)
 		}
 	}
+	return b
+}
+
+func (b *Block[T]) Clone(count int) BlockView {
+	clone := *b
+	clone.name = fmt.Sprintf("%s-%d", b.name, count)
+	return &clone
+}
+
+func (b *Block[T]) Display() *Block[T] {
+	b.navigable = false
 	return b
 }
 
@@ -204,12 +223,11 @@ func (b *Block[T]) render() string {
 		} else {
 			cursor = Cursor{Row: Row(i), Col: 0}
 		}
-		if cursor == b.cursor {
-			rendered[i] = style.Accent.Render("[" + item.Label + "]")
+		if cursor == b.cursor && b.navigable {
+			rendered[i] = style.ItemSelected.Render("[" + item.Label + "]")
 		} else {
-			rendered[i] = style.Muted.Render(item.Label)
+			rendered[i] = style.Item.Render(item.Label)
 		}
-
 	}
 
 	if b.horizontal {

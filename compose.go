@@ -14,6 +14,8 @@ type BlockView interface {
 	Current() Cursor
 	Size() Size
 	Name() string
+	Clone(count int) BlockView
+	Navigable() bool
 
 	Init() tea.Cmd
 	Update(tea.Msg) (tea.Model, tea.Cmd)
@@ -35,6 +37,7 @@ type Composite struct {
 	cursor Cursor
 	state  State
 	row    int
+	clones map[BlockView]int
 }
 
 func newCompose() *Composite {
@@ -42,6 +45,7 @@ func newCompose() *Composite {
 		graph:  NewGraph(),
 		blocks: make(map[Cursor]BlockView),
 		index:  make(map[BlockView]Cursor),
+		clones: make(map[BlockView]int),
 		row:    0,
 	}
 }
@@ -61,6 +65,22 @@ func Compose(rows ...BlockRow) *Composite {
 func (c *Composite) addRow(blocks ...BlockView) {
 	var rows BlockRow
 	for col, b := range blocks {
+		if _, ok := b.(*BlankBlock); ok {
+			rows = append(rows, b)
+			continue
+		}
+
+		if !b.Navigable() {
+			if _, exists := c.index[b]; !exists {
+				rows = append(rows, b)
+				// register position for rendering only, no graph node
+				cursor := Cursor{Row: Row(c.row), Col: Col(col)}
+				c.blocks[cursor] = b
+				c.index[b] = cursor
+			}
+			continue
+		}
+
 		if _, exists := c.index[b]; !exists {
 			rows = append(rows, b)
 		}
@@ -84,11 +104,14 @@ func (c *Composite) addRow(blocks ...BlockView) {
 
 		// connect left neighbor
 		if col > 0 {
-			prev := Cursor{Row: Row(c.row), Col: Col(col - 1)}
-			if prevBlock, exists := c.blocks[prev]; exists {
-				prevCursor := c.index[prevBlock]
-				if prevCursor != blockCursor {
-					builder.BiEdge(prevCursor, Right, blockCursor)
+			for scanLeft := col - 1; scanLeft >= 0; scanLeft-- {
+				prev := Cursor{Row: Row(c.row), Col: Col(scanLeft)}
+				if prevBlock, exists := c.blocks[prev]; exists {
+					prevCursor := c.index[prevBlock]
+					if prevCursor != blockCursor {
+						builder.BiEdge(prevCursor, Right, blockCursor)
+					}
+					break
 				}
 			}
 		}
@@ -101,7 +124,6 @@ func (c *Composite) addRow(blocks ...BlockView) {
 				builder.Edge(blockCursor, Top, topCursor)
 				builder.Edge(topCursor, Down, blockCursor)
 			} else {
-				// check if a span covers this col by scanning left
 				for scanCol := col - 1; scanCol >= 0; scanCol-- {
 					topScan := Cursor{Row: Row(c.row - 1), Col: Col(scanCol)}
 					if topBlock, exists := c.blocks[topScan]; exists {
@@ -200,25 +222,24 @@ func (c *Composite) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func container(width, height int, block string, focused bool) string {
+	s := GetStyle()
 	if focused {
-		return lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("205")).
-			Align(lipgloss.Center).
+		return s.ContainerFocused.
 			Width(width - 2).
 			Height(height - 2 - 2).
-			Padding(1).
 			Render(block)
 	}
-
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("59")).
-		Align(lipgloss.Center).
+	return s.Container.
 		Width(width - 2).
 		Height(height - 2).
-		Padding(1).
 		Render(block)
+}
+
+func blank(width, height int) string {
+	return GetStyle().Blank.
+		Width(width).
+		Height(height).
+		Render("")
 }
 
 type segment struct {
@@ -238,12 +259,12 @@ func (c *Composite) View() tea.View {
 	for _, row := range c.layout {
 		rowWidth := 0
 		for _, b := range row {
-			content := container(
-				b.Size().Width,
-				b.Size().Height,
-				b.View().Content,
-				false,
-			)
+			var content string
+			if _, ok := b.(*BlankBlock); ok {
+				content = blank(b.Size().Width, b.Size().Height)
+			} else {
+				content = container(b.Size().Width, b.Size().Height, b.View().Content, false)
+			}
 			rowWidth += lipgloss.Width(content)
 		}
 		if rowWidth > totalWidth {
@@ -259,13 +280,17 @@ func (c *Composite) View() tea.View {
 		x := startX
 
 		for _, block := range row {
-			content := container(
-				block.Size().Width,
-				block.Size().Height,
-				block.View().Content,
-				block.Focused(),
-			)
-
+			var content string
+			if _, ok := block.(*BlankBlock); ok {
+				content = blank(block.Size().Width, block.Size().Height)
+			} else {
+				content = container(
+					block.Size().Width,
+					block.Size().Height,
+					block.View().Content,
+					block.Focused(),
+				)
+			}
 			w := lipgloss.Width(content)
 			h := lipgloss.Height(content)
 
