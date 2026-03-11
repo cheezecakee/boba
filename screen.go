@@ -6,7 +6,7 @@ import (
 
 type ScreenFactory func() Screen
 
-var Keys = DefaultKeyMap()
+var Keys *KeyMap
 
 type Screen interface {
 	Update(msg tea.Msg) (Screen, tea.Cmd)
@@ -20,18 +20,41 @@ type App struct {
 	history []Screen
 	width   int
 	height  int
+	config  Config
 }
 
 func NewApp(screen ScreenFactory) *App {
 	return &App{
 		current: screen(),
+		config:  defaultConfig(),
 	}
 }
 
 func (a *App) Run() error {
+	a.config.load()
+	a.config.apply()
 	p := tea.NewProgram(a)
 	_, err := p.Run()
 	return err
+}
+
+func (a *App) WithAltScreen(v bool) *App {
+	a.config.App.AltScreen = v
+	a.config.saveFile(configFile, a.config.App)
+	return a
+}
+
+func (a *App) WithTitle(s string) *App {
+	a.config.App.Title = s
+	a.config.saveFile(configFile, a.config.App)
+	return a
+}
+
+func (a *App) WithTheme(t string) *App {
+	a.config.loadFile(themeFile, &a.config.Theme)
+	a.config.Theme.Active = t
+	a.config.saveFile(themeFile, &a.config.Theme)
+	return a
 }
 
 func (a *App) Init() tea.Cmd {
@@ -71,7 +94,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (a *App) View() tea.View {
 	v := a.current.View()
-	v.AltScreen = true
+	v.AltScreen = a.config.App.AltScreen
+	v.WindowTitle = a.config.App.Title
 	return v
 }
 

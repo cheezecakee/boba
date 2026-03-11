@@ -1,61 +1,10 @@
 package boba
 
 import (
-	"image/color"
-
 	"charm.land/lipgloss/v2"
 )
 
 var style Style
-
-type Theme struct {
-	Primary    color.Color
-	Secondary  color.Color
-	Accent     color.Color
-	Muted      color.Color
-	Subtle     color.Color
-	Danger     color.Color
-	Warning    color.Color
-	Success    color.Color
-	Text       color.Color
-	Background color.Color
-}
-
-//============ Default Themes ============//
-
-func DarkTheme() Theme {
-	return Theme{
-		Primary:    NewColor("205"),
-		Secondary:  NewColor("86"),
-		Accent:     NewColor("205"),
-		Muted:      NewColor("240"),
-		Subtle:     NewColor("236"),
-		Danger:     NewColor("9"),
-		Warning:    NewColor("214"),
-		Success:    NewColor("10"),
-		Text:       NewColor("255"),
-		Background: NewColor("0"),
-	}
-}
-
-func LightTheme() Theme {
-	return Theme{
-		Primary:    NewColor("205"),
-		Secondary:  NewColor("26"),
-		Accent:     NewColor("205"),
-		Muted:      NewColor("250"),
-		Subtle:     NewColor("254"),
-		Danger:     NewColor("9"),
-		Warning:    NewColor("214"),
-		Success:    NewColor("2"),
-		Text:       NewColor("0"),
-		Background: NewColor("255"),
-	}
-}
-
-func DefaultTheme() Theme {
-	return DarkTheme()
-}
 
 // Style holds component styles built from the theme
 // These are pre-built layouts and component appearances

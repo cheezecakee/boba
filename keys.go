@@ -2,6 +2,7 @@ package boba
 
 import (
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -16,10 +17,8 @@ type KeyMap struct {
 	GlobalKeys
 	Navigation NavigationKeys
 	Focus      FocusKeys
-	Components ComponentKeys // List, Viewport etc. TODO will be added later
 	Custom     map[string]key.Binding
-
-	index keyIndex
+	index      keyIndex
 }
 
 type GlobalKeys struct {
@@ -35,9 +34,8 @@ type NavigationKeys struct {
 	Down  Key
 	Left  Key
 	Right Key
-
-	Next Key
-	Prev Key
+	Next  Key
+	Prev  Key
 }
 
 type FocusKeys struct {
@@ -45,46 +43,32 @@ type FocusKeys struct {
 	Down   Key
 	Left   Key
 	Right  Key
-	Toggle Key // unbound by default
+	Toggle Key
 }
-
-type ComponentKeys struct{}
 
 func (k Key) Match(msg tea.KeyPressMsg) bool {
 	return key.Matches(msg, key.Binding(k))
-}
-
-func (k *KeyMap) Bind(action string, keys ...string) error {
-	binding, ok := k.index[action]
-	if !ok {
-		return fmt.Errorf("unknown action: %s", action)
-	}
-
-	(*key.Binding)(binding).SetKeys(keys...)
-	return nil
-}
-
-func (k *KeyMap) Unbind(action string) error {
-	binding, ok := k.index[action]
-	if !ok {
-		return fmt.Errorf("unknown action: %s", action)
-	}
-	(*key.Binding)(binding).SetKeys()
-	return nil
 }
 
 func (k *KeyMap) NewBind(action string, binding key.Binding) error {
 	if _, ok := k.index[action]; ok {
 		return fmt.Errorf("action already exists: %s", action)
 	}
-
 	k.Custom[action] = binding
 	return nil
 }
 
+func (k *KeyMap) bind(action string, keys ...string) {
+	binding, ok := k.index[action]
+	if !ok {
+		return
+	}
+	b := key.Binding(*binding)
+	b.SetKeys(keys...)
+	*binding = Key(b)
+}
+
 func (k *KeyMap) Is(msg tea.KeyPressMsg, action string) bool {
-	// looks up binding by dot path "global.quit", "navigation.up" etc.
-	// call key.Matches internally
 	if binding, ok := k.index[action]; ok {
 		return binding.Match(msg)
 	}
@@ -96,24 +80,51 @@ func (k *KeyMap) Is(msg tea.KeyPressMsg, action string) bool {
 
 func (k *KeyMap) buildIndex() keyIndex {
 	return keyIndex{
-		"quit":   &k.Quit,
-		"back":   &k.Back,
-		"submit": &k.Submit,
-		"select": &k.Select,
-		"help":   &k.Help,
-
+		"quit":             &k.Quit,
+		"back":             &k.Back,
+		"submit":           &k.Submit,
+		"select":           &k.Select,
+		"help":             &k.Help,
 		"navigation.up":    &k.Navigation.Up,
 		"navigation.down":  &k.Navigation.Down,
 		"navigation.left":  &k.Navigation.Left,
 		"navigation.right": &k.Navigation.Right,
 		"navigation.next":  &k.Navigation.Next,
 		"navigation.prev":  &k.Navigation.Prev,
+		"focus.up":         &k.Focus.Up,
+		"focus.down":       &k.Focus.Down,
+		"focus.left":       &k.Focus.Left,
+		"focus.right":      &k.Focus.Right,
+		"focus.toggle":     &k.Focus.Toggle,
+	}
+}
 
-		"focus.up":     &k.Focus.Up,
-		"focus.down":   &k.Focus.Down,
-		"focus.left":   &k.Focus.Left,
-		"focus.right":  &k.Focus.Right,
-		"focus.toggle": &k.Focus.Toggle,
+func keysToConfig(k *KeyMap) KeysConfig {
+	global := map[string]KeyEntry{}
+	navigation := map[string]KeyEntry{}
+	focus := map[string]KeyEntry{}
+
+	for action, binding := range k.index {
+		b := key.Binding(*binding)
+		entry := KeyEntry{
+			Keys: b.Keys(),
+			Help: []string{b.Help().Key, b.Help().Desc},
+		}
+		switch {
+		case strings.HasPrefix(action, "navigation."):
+			navigation[strings.TrimPrefix(action, "navigation.")] = entry
+		case strings.HasPrefix(action, "focus."):
+			focus[strings.TrimPrefix(action, "focus.")] = entry
+		default:
+			global[action] = entry
+		}
+	}
+
+	return KeysConfig{
+		Global:     global,
+		Navigation: navigation,
+		Focus:      focus,
+		Custom:     map[string]KeyEntry{},
 	}
 }
 
@@ -188,10 +199,8 @@ func DefaultKeyMap() KeyMap {
 				key.WithHelp("", "toggle focus mode"),
 			)),
 		},
-		Components: ComponentKeys{},
-		Custom:     make(map[string]key.Binding),
+		Custom: make(map[string]key.Binding),
 	}
-
 	k.index = k.buildIndex()
 	return k
 }
