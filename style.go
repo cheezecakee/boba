@@ -33,6 +33,7 @@ type Style struct {
 	Blank            lipgloss.Style
 	Item             lipgloss.Style
 	ItemSelected     lipgloss.Style
+	Composite        lipgloss.Style
 
 	// Overlays
 	Popup        lipgloss.Style
@@ -111,6 +112,8 @@ func NewStyle(width, height int, theme Theme) Style {
 
 		ItemSelected: lipgloss.NewStyle().
 			Foreground(theme.Accent),
+
+		Composite: lipgloss.NewStyle(),
 
 		// Overlays
 		Popup: lipgloss.NewStyle().
