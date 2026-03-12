@@ -37,6 +37,7 @@ type Composite struct {
 	layout []BlockRow
 	cursor Cursor
 	state  State
+	size   Size
 	row    int
 	clones map[BlockView]int
 }
@@ -202,6 +203,10 @@ func (c *Composite) Move(dir Direction) {
 	c.blocks[c.cursor].Focus()
 }
 
+func (c *Composite) Size() Size {
+	return c.size
+}
+
 // tea.Model
 
 func (c *Composite) Init() tea.Cmd {
@@ -320,6 +325,18 @@ func (c *Composite) View() tea.View {
 			}
 
 			x += w
+		}
+
+		maxHeight := 0
+		for _, h := range heights {
+			if h > maxHeight {
+				maxHeight = h
+			}
+		}
+
+		c.size = Size{
+			Width:  totalWidth,
+			Height: maxHeight,
 		}
 	}
 
