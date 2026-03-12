@@ -2,6 +2,7 @@ package boba
 
 import (
 	"fmt"
+	"log"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -238,16 +239,21 @@ func (b *Block[T]) render() string {
 // tea.Model
 
 func (b *Block[T]) Init() tea.Cmd {
+	log.Println("Block Init")
 	if b.model != nil {
-		// Seed items into the component
 		if c, ok := any(&b.model.current).(Component); ok {
 			c.SetItems(b.items)
+		}
+		if initer, ok := any(b.model.current).(interface{ Init() tea.Cmd }); ok {
+			log.Println("Block returning Init cmd")
+			return initer.Init()
 		}
 	}
 	return nil
 }
 
 func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	log.Printf("Block %s received: %T\n", b.name, msg)
 	var cmd tea.Cmd
 
 	if _, ok := msg.(SelectedItemMsg); ok {
@@ -260,7 +266,7 @@ func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return b, func() tea.Msg { return msg }
 		case CursorMsg:
 			b.cursor = msg.Cursor
-			return b, nil
+			return b, cmd
 		}
 
 		var m T

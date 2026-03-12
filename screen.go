@@ -1,6 +1,9 @@
 package boba
 
 import (
+	"fmt"
+	"log"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -31,10 +34,16 @@ func NewApp(screen ScreenFactory) *App {
 }
 
 func (a *App) Run() error {
+	f, err := tea.LogToFile("debug.log", "debug")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
 	a.config.load()
 	a.config.apply()
 	p := tea.NewProgram(a)
-	_, err := p.Run()
+	_, err = p.Run()
 	return err
 }
 
@@ -58,11 +67,13 @@ func (a *App) WithTheme(t string) *App {
 }
 
 func (a *App) Init() tea.Cmd {
+	fmt.Println("App Init")
 	return a.current.Init()
 }
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
@@ -71,7 +82,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SelectedItemMsg:
 		newScreen, cmd := ExecItem(a.current, &msg.Item)
 		if newScreen != a.current {
-			a.push(newScreen)
+			initCmd := a.push(newScreen)
+			return a, tea.Batch(cmd, initCmd)
 		}
 		return a, cmd
 
@@ -86,9 +98,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	newScreen, cmd := a.current.Update(msg)
+
 	if newScreen != a.current {
-		a.push(newScreen)
+		initCmd := a.push(newScreen)
+		return a, tea.Batch(cmd, initCmd)
 	}
+
 	return a, cmd
 }
 
@@ -99,9 +114,10 @@ func (a *App) View() tea.View {
 	return v
 }
 
-func (a *App) push(screen Screen) {
+func (a *App) push(screen Screen) tea.Cmd {
 	a.history = append(a.history, a.current)
 	a.current = screen
+	return a.current.Init()
 }
 
 func (a *App) pop() bool {
