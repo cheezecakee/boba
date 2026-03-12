@@ -35,6 +35,7 @@ type KeysConfig struct {
 	Global     map[string]KeyEntry `toml:"global"`
 	Navigation map[string]KeyEntry `toml:"navigation"`
 	Focus      map[string]KeyEntry `toml:"focus"`
+	Component  map[string]KeyEntry `toml:"component"`
 	Custom     map[string]KeyEntry `toml:"custom"`
 }
 
@@ -149,6 +150,7 @@ func keysToConfig(k *KeyMap) KeysConfig {
 	global := map[string]KeyEntry{}
 	navigation := map[string]KeyEntry{}
 	focus := map[string]KeyEntry{}
+	component := map[string]KeyEntry{}
 
 	for action, binding := range k.index {
 		b := key.Binding(*binding)
@@ -161,6 +163,8 @@ func keysToConfig(k *KeyMap) KeysConfig {
 			navigation[strings.TrimPrefix(action, "navigation.")] = entry
 		case strings.HasPrefix(action, "focus."):
 			focus[strings.TrimPrefix(action, "focus.")] = entry
+		case strings.HasPrefix(action, "component."):
+			component[strings.TrimPrefix(action, "component.")] = entry
 		default:
 			global[action] = entry
 		}
@@ -170,6 +174,7 @@ func keysToConfig(k *KeyMap) KeysConfig {
 		Global:     global,
 		Navigation: navigation,
 		Focus:      focus,
+		Component:  component,
 		Custom:     map[string]KeyEntry{},
 	}
 }

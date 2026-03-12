@@ -14,6 +14,7 @@ type (
 
 type KeyMap struct {
 	GlobalKeys
+	ComponentKeys
 	Navigation NavigationKeys
 	Focus      FocusKeys
 	Custom     map[string]key.Binding
@@ -44,6 +45,28 @@ type FocusKeys struct {
 	Right  Key
 	Toggle Key
 }
+
+type ComponentKeys struct {
+	Timer     TimerKeys
+	Stopwatch StopwatchKeys
+	List      ListKeys
+}
+
+type TimerKeys struct {
+	Start  Key
+	Stop   Key
+	Reset  Key
+	Toggle Key
+}
+
+type StopwatchKeys struct {
+	Start  Key
+	Stop   Key
+	Reset  Key
+	Toggle Key
+}
+
+type ListKeys struct{}
 
 func (k Key) Match(msg tea.KeyPressMsg) bool {
 	return key.Matches(msg, key.Binding(k))
@@ -79,22 +102,30 @@ func (k *KeyMap) Is(msg tea.KeyPressMsg, action string) bool {
 
 func (k *KeyMap) buildIndex() keyIndex {
 	return keyIndex{
-		"quit":             &k.Quit,
-		"back":             &k.Back,
-		"submit":           &k.Submit,
-		"select":           &k.Select,
-		"help":             &k.Help,
-		"navigation.up":    &k.Navigation.Up,
-		"navigation.down":  &k.Navigation.Down,
-		"navigation.left":  &k.Navigation.Left,
-		"navigation.right": &k.Navigation.Right,
-		"navigation.next":  &k.Navigation.Next,
-		"navigation.prev":  &k.Navigation.Prev,
-		"focus.up":         &k.Focus.Up,
-		"focus.down":       &k.Focus.Down,
-		"focus.left":       &k.Focus.Left,
-		"focus.right":      &k.Focus.Right,
-		"focus.toggle":     &k.Focus.Toggle,
+		"quit":                       &k.Quit,
+		"back":                       &k.Back,
+		"submit":                     &k.Submit,
+		"select":                     &k.Select,
+		"help":                       &k.Help,
+		"navigation.up":              &k.Navigation.Up,
+		"navigation.down":            &k.Navigation.Down,
+		"navigation.left":            &k.Navigation.Left,
+		"navigation.right":           &k.Navigation.Right,
+		"navigation.next":            &k.Navigation.Next,
+		"navigation.prev":            &k.Navigation.Prev,
+		"focus.up":                   &k.Focus.Up,
+		"focus.down":                 &k.Focus.Down,
+		"focus.left":                 &k.Focus.Left,
+		"focus.right":                &k.Focus.Right,
+		"focus.toggle":               &k.Focus.Toggle,
+		"component.timer.start":      &k.Timer.Start,
+		"component.timer.stop":       &k.Timer.Stop,
+		"component.timer.reset":      &k.Timer.Reset,
+		"component.timer.toggle":     &k.Timer.Toggle,
+		"component.stopwatch.start":  &k.Stopwatch.Start,
+		"component.stopwatch.stop":   &k.Stopwatch.Stop,
+		"component.stopwatch.reset":  &k.Stopwatch.Reset,
+		"component.stopwatch.toggle": &k.Stopwatch.Toggle,
 	}
 }
 
@@ -168,6 +199,20 @@ func DefaultKeyMap() KeyMap {
 			Toggle: Key(key.NewBinding(
 				key.WithHelp("", "toggle focus mode"),
 			)),
+		},
+		ComponentKeys: ComponentKeys{
+			Timer: TimerKeys{
+				Start:  Key(key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start"))),
+				Stop:   Key(key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop"))),
+				Reset:  Key(key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reset"))),
+				Toggle: Key(key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "toggle"))),
+			},
+			Stopwatch: StopwatchKeys{
+				Start:  Key(key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start"))),
+				Stop:   Key(key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop"))),
+				Reset:  Key(key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reset"))),
+				Toggle: Key(key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "toggle"))),
+			},
 		},
 		Custom: make(map[string]key.Binding),
 	}
