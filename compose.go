@@ -366,5 +366,13 @@ func (c *Composite) View() tea.View {
 		}
 	}
 
-	return tea.NewView(lipgloss.NewCompositor(layers...).Render())
+	style := GetStyle()
+
+	comp := lipgloss.NewCompositor(layers...).Render()
+
+	rendered := style.Composite.
+		Width(totalWidth).
+		Render(comp)
+
+	return tea.NewView(rendered)
 }
