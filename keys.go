@@ -2,7 +2,6 @@ package boba
 
 import (
 	"fmt"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -96,35 +95,6 @@ func (k *KeyMap) buildIndex() keyIndex {
 		"focus.left":       &k.Focus.Left,
 		"focus.right":      &k.Focus.Right,
 		"focus.toggle":     &k.Focus.Toggle,
-	}
-}
-
-func keysToConfig(k *KeyMap) KeysConfig {
-	global := map[string]KeyEntry{}
-	navigation := map[string]KeyEntry{}
-	focus := map[string]KeyEntry{}
-
-	for action, binding := range k.index {
-		b := key.Binding(*binding)
-		entry := KeyEntry{
-			Keys: b.Keys(),
-			Help: []string{b.Help().Key, b.Help().Desc},
-		}
-		switch {
-		case strings.HasPrefix(action, "navigation."):
-			navigation[strings.TrimPrefix(action, "navigation.")] = entry
-		case strings.HasPrefix(action, "focus."):
-			focus[strings.TrimPrefix(action, "focus.")] = entry
-		default:
-			global[action] = entry
-		}
-	}
-
-	return KeysConfig{
-		Global:     global,
-		Navigation: navigation,
-		Focus:      focus,
-		Custom:     map[string]KeyEntry{},
 	}
 }
 

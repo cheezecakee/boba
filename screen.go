@@ -1,7 +1,6 @@
 package boba
 
 import (
-	"fmt"
 	"log"
 
 	tea "charm.land/bubbletea/v2"
@@ -27,9 +26,20 @@ type App struct {
 }
 
 func NewApp(screen ScreenFactory) *App {
+	k := DefaultKeyMap()
+	Keys = &k
+	Keys.index = Keys.buildIndex()
+
+	var config Config
+	config.load()
+	if config.Empty() {
+		config = defaultConfig()
+		config.save()
+	}
+
 	return &App{
 		current: screen(),
-		config:  defaultConfig(),
+		config:  config,
 	}
 }
 
@@ -39,8 +49,6 @@ func (a *App) Run() error {
 		log.Fatal(err)
 	}
 	defer f.Close()
-
-	a.config.load()
 	a.config.apply()
 	p := tea.NewProgram(a)
 	_, err = p.Run()
@@ -49,25 +57,20 @@ func (a *App) Run() error {
 
 func (a *App) WithAltScreen(v bool) *App {
 	a.config.App.AltScreen = v
-	a.config.saveFile(configFile, a.config.App)
 	return a
 }
 
 func (a *App) WithTitle(s string) *App {
 	a.config.App.Title = s
-	a.config.saveFile(configFile, a.config.App)
 	return a
 }
 
 func (a *App) WithTheme(t string) *App {
-	a.config.loadFile(themeFile, &a.config.Theme)
 	a.config.Theme.Active = t
-	a.config.saveFile(themeFile, &a.config.Theme)
 	return a
 }
 
 func (a *App) Init() tea.Cmd {
-	fmt.Println("App Init")
 	return a.current.Init()
 }
 
