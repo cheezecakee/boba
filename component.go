@@ -33,3 +33,12 @@ type TimerExpiredMsg struct {
 	ID   int
 	Name string
 }
+
+type StopwatchTickMsg struct {
+	Name    string
+	Elapsed time.Duration
+}
+
+type StopwatchExpiredMsg struct {
+	Name string
+}
