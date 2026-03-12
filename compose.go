@@ -2,6 +2,7 @@ package boba
 
 import (
 	"fmt"
+	"log"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -204,21 +205,36 @@ func (c *Composite) Move(dir Direction) {
 // tea.Model
 
 func (c *Composite) Init() tea.Cmd {
-	return nil
+	log.Println("Composite Init")
+	var cmds []tea.Cmd
+	for _, block := range c.blocks {
+		cmds = append(cmds, block.Init())
+	}
+	log.Println("Batching Init cmds")
+	return tea.Batch(cmds...)
 }
 
 func (c *Composite) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	log.Printf("Composite received: %T\n", msg)
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if dir, ok := FocusDirKey(msg); ok {
 			c.Move(dir)
 			return c, nil
 		}
+		block := c.blocks[c.cursor]
+		m, cmd := block.Update(msg)
+		c.blocks[c.cursor] = m.(BlockView)
+		return c, cmd
+	default:
+		var cmds []tea.Cmd
+		for cursor, block := range c.blocks {
+			m, cmd := block.Update(msg)
+			c.blocks[cursor] = m.(BlockView)
+			cmds = append(cmds, cmd)
+		}
+		return c, tea.Batch(cmds...)
 	}
-	block := c.blocks[c.cursor]
-	m, cmd := block.Update(msg)
-	c.blocks[c.cursor] = m.(BlockView)
-	return c, cmd
 }
 
 func container(width, height int, block string, focused bool) string {
@@ -226,7 +242,7 @@ func container(width, height int, block string, focused bool) string {
 	if focused {
 		return s.ContainerFocused.
 			Width(width - 2).
-			Height(height - 2 - 2).
+			Height(height - 2).
 			Render(block)
 	}
 	return s.Container.
