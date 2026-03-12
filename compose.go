@@ -258,19 +258,13 @@ func blank(width, height int) string {
 		Render("")
 }
 
-type segment struct {
-	x1 int
-	x2 int
-	y  int
-}
-
 func (c *Composite) View() tea.View {
 	var layers []*lipgloss.Layer
 
 	startX := 0
 	startY := 0
 
-	// Compute real max layout width
+	// Compute layout width
 	totalWidth := 0
 	for _, row := range c.layout {
 		rowWidth := 0
@@ -288,9 +282,8 @@ func (c *Composite) View() tea.View {
 		}
 	}
 
-	heights := []segment{
-		{x1: startX, x2: startX + totalWidth, y: startY},
-	}
+	// Column height map
+	heights := make([]int, totalWidth)
 
 	for _, row := range c.layout {
 		x := startX
@@ -307,61 +300,25 @@ func (c *Composite) View() tea.View {
 					block.Focused(),
 				)
 			}
+
 			w := lipgloss.Width(content)
 			h := lipgloss.Height(content)
 
-			// Find highest overlapping Y
+			// Find max height across columns this block spans
 			y := startY
-			for _, seg := range heights {
-				if x < seg.x2 && x+w > seg.x1 {
-					if seg.y > y {
-						y = seg.y
-					}
+			for i := x; i < x+w && i < len(heights); i++ {
+				if heights[i] > y {
+					y = heights[i]
 				}
 			}
 
 			layers = append(layers, lipgloss.NewLayer(content).X(x).Y(y))
 
-			newY := y + h
-			var updated []segment
-
-			for _, seg := range heights {
-				// No overlap
-				if x >= seg.x2 || x+w <= seg.x1 {
-					updated = append(updated, seg)
-					continue
-				}
-
-				// Left remainder
-				if seg.x1 < x {
-					updated = append(updated, segment{
-						x1: seg.x1,
-						x2: x,
-						y:  seg.y,
-					})
-				}
-
-				// Overlap section (raise height)
-				overlapStart := max(seg.x1, x)
-				overlapEnd := min(seg.x2, x+w)
-
-				updated = append(updated, segment{
-					x1: overlapStart,
-					x2: overlapEnd,
-					y:  newY,
-				})
-
-				// Right remainder
-				if seg.x2 > x+w {
-					updated = append(updated, segment{
-						x1: x + w,
-						x2: seg.x2,
-						y:  seg.y,
-					})
-				}
+			// Update column heights
+			for i := x; i < x+w && i < len(heights); i++ {
+				heights[i] = y + h
 			}
 
-			heights = updated
 			x += w
 		}
 	}
