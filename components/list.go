@@ -34,8 +34,7 @@ func newList(title string, w, h int) *List {
 	return &List{model: l}
 }
 
-// SetItems converts boba.Items into bubbles list.Items and seeds the inner model.
-// Implements boba.component.
+// SetItems converts boba.Items into bubbles list.Items and seeds the inner model
 func (l *List) SetItems(items boba.Items) {
 	converted := make([]list.Item, len(items))
 	for i, item := range items {

@@ -98,8 +98,8 @@ func TableBlock(name string, headers []Header, rows []Row, w, h int) *b.Block[*T
 	s.Selected = s.Selected.
 		Foreground(theme.Background).
 		Background(theme.Accent).
-		Bold(false)
-	s.Cell = s.Cell.Foreground(theme.Text)
+		Bold(false).
+		Width(w)
 
 	m := table.New(
 		table.WithColumns(cols),
