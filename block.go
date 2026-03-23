@@ -3,7 +3,9 @@ package boba
 import (
 	"fmt"
 	"log"
+	"strings"
 
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -18,16 +20,18 @@ type model[T BubbleModel[T]] struct {
 }
 
 type Block[T BubbleModel[T]] struct {
-	name       string
-	items      Items
-	Graph      *Graph
-	size       Size
-	selection  Selection
-	cursor     Cursor
-	focused    bool
-	horizontal bool
-	navigable  bool
-	model      *model[T]
+	name      string
+	items     Items
+	Graph     *Graph
+	size      Size
+	selection Selection
+	cursor    Cursor
+	focused   bool
+	dimension Dimension
+	navigable bool
+	model     *model[T]
+	viewport  *viewport.Model
+	scroll    bool
 }
 
 func NewBlock[T BubbleModel[T]](name string, width, height int, selection SelectionType, model ...T) *Block[T] {
@@ -115,15 +119,16 @@ func (b *Block[T]) SetItems(items Items) *Block[T] {
 	return b
 }
 
+func (b *Block[T]) Display() *Block[T] {
+	b.navigable = false
+	return b
+}
+
+// Clone is not currently completed
 func (b *Block[T]) Clone(count int) BlockView {
 	clone := *b
 	clone.name = fmt.Sprintf("%s-%d", b.name, count)
 	return &clone
-}
-
-func (b *Block[T]) Display() *Block[T] {
-	b.navigable = false
-	return b
 }
 
 // Selection
@@ -142,58 +147,78 @@ func (b *Block[T]) Selected() *Item {
 	if len(b.items) == 0 {
 		return nil
 	}
-	if b.horizontal {
-		return &b.items[int(b.cursor.Col)]
+
+	idx := int(b.cursor.Row)*b.dimension.Cols + int(b.cursor.Col)
+
+	if idx >= len(b.items) {
+		return nil
 	}
-	return &b.items[int(b.cursor.Row)]
+
+	return &b.items[idx]
 }
 
 // Graph builders for custom models
 // Currently only supports vertical and horizontal builds
 
+func (b *Block[T]) Grid(rows, cols int) *Block[T] {
+	if b.model != nil {
+		return b
+	}
+
+	builder := &NavBuilder{graph: b.Graph}
+	total := len(b.items)
+
+	// create nodes
+	for r := range rows {
+		for c := range cols {
+			idx := r*cols + c
+			cursor := Cursor{Row: Row(r), Col: Col(c)}
+
+			enabled := idx < total
+			builder.Node(cursor, NodeMeta{Enabled: enabled})
+		}
+	}
+
+	// connect edges
+	for r := range rows {
+		for c := range cols {
+			cur := Cursor{Row: Row(r), Col: Col(c)}
+
+			if r < rows-1 {
+				down := Cursor{Row: Row(r + 1), Col: Col(c)}
+				builder.BiEdge(cur, Down, down)
+			}
+			if c < cols-1 {
+				right := Cursor{Row: Row(r), Col: Col(c + 1)}
+				builder.BiEdge(cur, Right, right)
+			}
+		}
+	}
+
+	b.Graph = builder.Build()
+
+	b.dimension = Dimension{
+		Rows: rows,
+		Cols: cols,
+	}
+
+	return b
+}
+
 func (b *Block[T]) Vertical() *Block[T] {
 	if b.model != nil {
 		return b
 	}
-	builder := &NavBuilder{graph: b.Graph}
-	rows := len(b.items)
 
-	for i := range b.items {
-		cursor := Cursor{Row: Row(i), Col: 0}
-		builder.Node(cursor, NodeMeta{Enabled: true})
-	}
-
-	for i := range rows - 1 {
-		from := Cursor{Row: Row(i), Col: 0}
-		to := Cursor{Row: Row(i + 1), Col: 0}
-		builder.BiEdge(from, Down, to)
-	}
-
-	b.Graph = builder.Build()
-	return b
+	return b.Grid(len(b.items), 1)
 }
 
 func (b *Block[T]) Horizontal() *Block[T] {
 	if b.model != nil {
 		return b
 	}
-	builder := &NavBuilder{graph: b.Graph}
-	cols := len(b.items)
 
-	for i := range b.items {
-		cursor := Cursor{Row: 0, Col: Col(i)}
-		builder.Node(cursor, NodeMeta{Enabled: true})
-	}
-
-	for i := range cols - 1 {
-		from := Cursor{Row: 0, Col: Col(i)}
-		to := Cursor{Row: 0, Col: Col(i + 1)}
-		builder.BiEdge(from, Right, to)
-	}
-
-	b.Graph = builder.Build()
-	b.horizontal = true
-	return b
+	return b.Grid(1, len(b.items))
 }
 
 // Pre-existing Models
@@ -210,30 +235,20 @@ func (b *Block[T]) Model() *T {
 	return &b.model.current
 }
 
-// Render
+// Viewport
 
-func (b *Block[T]) render() string {
-	rendered := make([]string, len(b.items))
-	style := GetStyle()
-
-	for i, item := range b.items {
-		var cursor Cursor
-		if b.horizontal {
-			cursor = Cursor{Row: 0, Col: Col(i)}
-		} else {
-			cursor = Cursor{Row: Row(i), Col: 0}
-		}
-		if cursor == b.cursor && b.navigable {
-			rendered[i] = style.ItemSelected.Render("[" + item.Label + "]")
-		} else {
-			rendered[i] = style.Item.Render(item.Label)
-		}
+func (b *Block[T]) EnabledScroll() *Block[T] {
+	if b.scroll {
+		return b
 	}
 
-	if b.horizontal {
-		return lipgloss.JoinHorizontal(lipgloss.Center, rendered...)
-	}
-	return lipgloss.JoinVertical(lipgloss.Center, rendered...)
+	v := viewport.New(
+		viewport.WithWidth(b.size.Width),
+		viewport.WithHeight(b.size.Height),
+	)
+
+	b.viewport = &v
+	return b
 }
 
 // tea.Model
@@ -254,7 +269,17 @@ func (b *Block[T]) Init() tea.Cmd {
 
 func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	log.Printf("Block %s received: %T\n", b.name, msg)
-	var cmd tea.Cmd
+
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
+
+	if b.viewport != nil {
+		v, cmd := b.viewport.Update(msg)
+		*b.viewport = v
+		cmds = append(cmds, cmd)
+	}
 
 	if _, ok := msg.(SelectedItemMsg); ok {
 		return b, func() tea.Msg { return msg }
@@ -289,12 +314,99 @@ func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	return b, cmd
+	return b, tea.Batch(cmds...)
 }
 
 func (b *Block[T]) View() tea.View {
+	var content string
+	style := GetStyle()
+
 	if b.model != nil {
-		return b.model.current.View()
+		content = b.model.current.View().Content
+	} else {
+		content = b.render()
 	}
-	return tea.NewView(b.render())
+
+	content = style.Content.
+		Width(b.size.Width).
+		Height(b.size.Height).
+		Render(content)
+
+	if b.viewport != nil {
+		b.viewport.SetContent(content)
+		return tea.NewView(b.viewport.View())
+	}
+
+	return tea.NewView(content)
+}
+
+// Render
+
+func (b *Block[T]) render() string {
+	cellWidth := b.cellWidth()
+
+	style := GetStyle()
+
+	cursorLeft := style.Cursor.Left
+	cursorRight := style.Cursor.Right
+	blankLeft := strings.Repeat(" ", lipgloss.Width(style.Cursor.Left))
+	blankRight := strings.Repeat(" ", lipgloss.Width(style.Cursor.Right))
+
+	var s strings.Builder
+
+	for r := range b.dimension.Rows {
+		for c := range b.dimension.Cols {
+
+			idx := r*b.dimension.Cols + c
+			if idx >= len(b.items) {
+				break
+			}
+
+			item := b.items[idx]
+			cursor := Cursor{Row: Row(r), Col: Col(c)}
+
+			innerWidth := cellWidth - lipgloss.Width(cursorLeft+cursorRight)
+
+			label := lipgloss.PlaceHorizontal(
+				innerWidth,
+				lipgloss.Left,
+				item.Label,
+			)
+			var cell string
+			var l string
+
+			if cursor == b.cursor && b.navigable {
+				l = cursorLeft + label + cursorRight
+				cell = style.ItemSelected.Width(cellWidth).Render(l)
+			} else {
+				l = blankLeft + label + blankRight
+				cell = style.Item.Width(cellWidth).Render(l)
+			}
+
+			s.WriteString(cell)
+		}
+
+		if r < b.dimension.Rows-1 {
+			s.WriteByte('\n')
+		}
+	}
+
+	return s.String()
+}
+
+// Helper
+
+func (b *Block[T]) cellWidth() int {
+	max := 0
+	style := GetStyle()
+	for _, item := range b.items {
+		w := lipgloss.Width(item.Label)
+		if w > max {
+			max = w
+		}
+	}
+
+	// cursor width is already part of the render
+	cursorWidth := lipgloss.Width(style.Cursor.Left + style.Cursor.Right)
+	return max + cursorWidth
 }
