@@ -6,22 +6,36 @@ import (
 
 var style Style
 
+type CursorStyle struct {
+	Left  string
+	Right string
+}
+
 // Style holds component styles built from the theme
 // These are pre-built layouts and component appearances
+// They can and should be edited from the style.toml and theme.toml
 type Style struct {
-	Size  Size
-	Theme Theme
+	Size   Size
+	Theme  Theme
+	Cursor CursorStyle
+
+	// Main root
+	Root lipgloss.Style
+
+	// Sectioning Root
+	Body lipgloss.Style
 
 	// Sections
 	Header lipgloss.Style
-	Body   lipgloss.Style
+	Main   lipgloss.Style
 	Footer lipgloss.Style
 
 	// Elements
-	Title     lipgloss.Style
-	Text      lipgloss.Style
-	Label     lipgloss.Style
-	Badge     lipgloss.Style
+	Title lipgloss.Style
+	Text  lipgloss.Style
+	Label lipgloss.Style
+	Badge lipgloss.Style
+
 	Divider   lipgloss.Style
 	ErrorEl   lipgloss.Style
 	SuccessEl lipgloss.Style
@@ -33,7 +47,10 @@ type Style struct {
 	Blank            lipgloss.Style
 	Item             lipgloss.Style
 	ItemSelected     lipgloss.Style
-	Composite        lipgloss.Style
+
+	Content   lipgloss.Style
+	Composite lipgloss.Style
+	Viewport  lipgloss.Style
 
 	// Overlays
 	Popup        lipgloss.Style
@@ -44,28 +61,51 @@ type Style struct {
 func NewStyle(width, height int, theme Theme) Style {
 	size := Size{Width: width, Height: height}
 
-	return Style{
+	root := lipgloss.NewStyle().
+		Width(width).
+		Height(height)
+
+	body := lipgloss.NewStyle().Inherit(root)
+
+	s := Style{
 		Size:  size,
 		Theme: theme,
+		Cursor: CursorStyle{
+			Left:  "[",
+			Right: "]",
+		},
+
+		Root: root,
+
+		Body: body,
 
 		// Sections
 		Header: lipgloss.NewStyle().
-			Width(size.Width).
-			Align(lipgloss.Center).
-			Padding(0, 1),
+			Inherit(body).
+			Padding(0, 1).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(theme.Primary).
+			UnsetHeight(),
+		// Border(lipgloss.NormalBorder()).
 
-		Body: lipgloss.NewStyle().
-			Width(size.Width).
-			Align(lipgloss.Center).
-			Padding(1),
+		Main: lipgloss.NewStyle().
+			Inherit(body).
+			// Padding(1).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(theme.Primary).
+			UnsetHeight(),
+		// Border(lipgloss.NormalBorder()).
 
 		Footer: lipgloss.NewStyle().
-			Width(size.Width).
-			Align(lipgloss.Center).
-			Padding(0, 1),
+			Inherit(body).
+			Padding(0, 1).
+			UnsetHeight(),
+		// Border(lipgloss.NormalBorder()).
 
 		// Elements
 		Title: lipgloss.NewStyle().
+			// Border(lipgloss.RoundedBorder()).
+			// BorderForeground(theme.Primary).
 			Foreground(theme.Primary).
 			Bold(true),
 
@@ -108,12 +148,22 @@ func NewStyle(width, height int, theme Theme) Style {
 		Blank: lipgloss.NewStyle(),
 
 		Item: lipgloss.NewStyle().
-			Foreground(theme.Text),
+			Foreground(theme.Text).
+			Align(lipgloss.Center),
+		// Padding(0, 1),
 
 		ItemSelected: lipgloss.NewStyle().
-			Foreground(theme.Accent),
+			Foreground(theme.Accent).
+			Align(lipgloss.Center),
+		// Padding(0, 1),
 
+		Content: lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(theme.Primary),
+		// Align(lipgloss.Center),
 		Composite: lipgloss.NewStyle(),
+		Viewport:  lipgloss.NewStyle(),
+		// Align(lipgloss.Center),
 
 		// Overlays
 		Popup: lipgloss.NewStyle().
@@ -128,6 +178,8 @@ func NewStyle(width, height int, theme Theme) Style {
 		PopupContent: lipgloss.NewStyle().
 			Foreground(theme.Text),
 	}
+
+	return s
 }
 
 func SetStyle(w, h int) {

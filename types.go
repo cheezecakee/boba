@@ -1,5 +1,10 @@
 package boba
 
+type Dimension struct {
+	Rows int
+	Cols int
+}
+
 type Position struct {
 	X int
 	Y int
@@ -43,3 +48,13 @@ const (
 	Single
 	Multi
 )
+
+type SectionTag int
+
+const (
+	HeaderTag SectionTag = iota
+	MainTag
+	FooterTag
+)
+
+type Sections []*Section

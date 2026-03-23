@@ -1,167 +1,76 @@
 package boba
 
 import (
-	"image/color"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
 
-// Element is anything that can be rendered inside a section.
-type Element interface {
-	render() string
+var root *Root
+
+type Body struct {
+	Section
+	Sections
 }
 
-//================== Text Elements ==================//
+func (b *Body) build() string {
+	order := []SectionTag{HeaderTag, MainTag, FooterTag}
 
-type textElement struct {
-	content string
-	style   lipgloss.Style
-}
-
-func (t *textElement) render() string {
-	return t.style.Render(t.content)
-}
-
-// Chainable style methods
-
-func (t *textElement) Bold() *textElement {
-	t.style = t.style.Bold(true)
-	return t
-}
-
-func (t *textElement) Italic() *textElement {
-	t.style = t.style.Italic(true)
-	return t
-}
-
-func (t *textElement) Color(c color.Color) *textElement {
-	t.style = t.style.Foreground(c)
-	return t
-}
-
-func (t *textElement) Background(c color.Color) *textElement {
-	t.style = t.style.Background(c)
-	return t
-}
-
-func (t *textElement) Muted() *textElement {
-	t.style = t.style.Foreground(GetStyle().Theme.Muted)
-	return t
-}
-
-func (t *textElement) Accent() *textElement {
-	t.style = t.style.Foreground(GetStyle().Theme.Accent)
-	return t
-}
-
-func (t *textElement) Center() *textElement {
-	t.style = t.style.Align(lipgloss.Center)
-	return t
-}
-
-func (t *textElement) Left() *textElement {
-	t.style = t.style.Align(lipgloss.Left)
-	return t
-}
-
-func (t *textElement) Right() *textElement {
-	t.style = t.style.Align(lipgloss.Right)
-	return t
-}
-
-func (t *textElement) Width(w int) *textElement {
-	t.style = t.style.Width(w)
-	return t
-}
-
-func (t *textElement) Padding(values ...int) *textElement {
-	switch len(values) {
-	case 1:
-		t.style = t.style.Padding(values[0])
-	case 2:
-		t.style = t.style.Padding(values[0], values[1])
-	case 4:
-		t.style = t.style.Padding(values[0], values[1], values[2], values[3])
+	var parts []string
+	for _, tag := range order {
+		for _, s := range b.Sections {
+			if s.tag == tag {
+				parts = append(parts, s.build())
+			}
+		}
 	}
-	return t
+
+	// raw content falls into main area
+	if len(b.content) > 0 {
+		var raw []string
+		for _, c := range b.content {
+			switch v := c.(type) {
+			case tea.View:
+				raw = append(raw, v.Content)
+			case Element:
+				raw = append(raw, v.render())
+			}
+		}
+		parts = append(parts, strings.Join(raw, "\n"))
+	}
+
+	return b.style.Render(strings.Join(parts, "\n"))
 }
 
-// Element constructors
+// Only one root and body should exist, treat it like html <body>
 
-func Title(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().Title}
+type Root struct {
+	*Body
 }
 
-func Text(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().Text}
+func (r *Root) Render() tea.View {
+	if r.Body == nil {
+		return tea.NewView("")
+	}
+
+	content := r.build()
+
+	return tea.NewView(GetStyle().Root.Render(content))
 }
 
-func Label(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().Label}
+func getRoot() *Root {
+	if root == nil {
+		root = &Root{}
+	}
+	return root
 }
 
-func Badge(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().Badge}
-}
-
-func Error(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().ErrorEl}
-}
-
-func SuccessText(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().SuccessEl}
-}
-
-func WarningText(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().WarningEl}
-}
-
-//==================Divider Element==================//
-
-type dividerElement struct {
-	char  string
-	style lipgloss.Style
-}
-
-func (d *dividerElement) render() string {
-	width := GetStyle().Size.Width
-	return d.style.Render(strings.Repeat(d.char, width))
-}
-
-func (d *dividerElement) Character(c string) *dividerElement {
-	d.char = c
-	return d
-}
-
-func (d *dividerElement) Color(c color.Color) *dividerElement {
-	d.style = d.style.Foreground(c)
-	return d
-}
-
-func Divider() *dividerElement {
-	return &dividerElement{char: "─", style: GetStyle().Divider}
-}
-
-//=================Spacer Element=================//
-
-type spacerElement struct {
-	lines int
-}
-
-func (s *spacerElement) render() string {
-	return strings.Repeat("\n", s.lines)
-}
-
-func Spacer(n int) *spacerElement {
-	return &spacerElement{lines: n}
-}
-
-//===================Sections======================//
+// ===================Sections======================//
 
 type Section struct {
-	content []any // Element or tea.View
+	tag     SectionTag
+	content []any
 	style   lipgloss.Style
 }
 
@@ -197,30 +106,49 @@ func (s *Section) build() string {
 			parts = append(parts, v.render())
 		}
 	}
+
 	return s.style.Render(strings.Join(parts, "\n"))
 }
 
 func Header(content ...any) *Section {
-	return &Section{content: content, style: GetStyle().Header}
+	return &Section{tag: HeaderTag, content: content, style: GetStyle().Header}
 }
 
-func Body(content ...any) *Section {
-	return &Section{content: content, style: GetStyle().Body}
+func Main(content ...any) *Section {
+	return &Section{tag: MainTag, content: content, style: GetStyle().Main}
 }
 
 func Footer(content ...any) *Section {
-	return &Section{content: content, style: GetStyle().Footer}
+	return &Section{tag: FooterTag, content: content, style: GetStyle().Footer}
 }
 
 //====================Render=========================//
 
-func Render(sections ...*Section) tea.View {
-	var parts []string
+func Render(sections ...any) tea.View {
+	root := getRoot()
+
+	root.Body = &Body{
+		Section: Section{
+			style:   GetStyle().Body,
+			content: nil,
+		},
+
+		Sections: nil,
+	}
+
 	for _, s := range sections {
-		built := s.build()
-		if built != "" {
-			parts = append(parts, built)
+		switch v := s.(type) {
+
+		case *Section:
+			root.Sections = append(root.Sections, v)
+
+		case tea.View:
+			root.content = append(root.content, v)
+
+		case Element:
+			root.content = append(root.content, v)
 		}
 	}
-	return tea.NewView(strings.Join(parts, "\n"))
+
+	return root.Render()
 }
