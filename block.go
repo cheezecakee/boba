@@ -32,6 +32,7 @@ type Block[T BubbleModel[T]] struct {
 	model     *model[T]
 	viewport  *viewport.Model
 	scroll    bool
+	style     lipgloss.Style
 }
 
 func NewBlock[T BubbleModel[T]](name string, width, height int, selection SelectionType, model ...T) *Block[T] {
@@ -57,6 +58,7 @@ func NewBlock[T BubbleModel[T]](name string, width, height int, selection Select
 		selection: s,
 		navigable: true,
 		cursor:    Cursor{Row: 0, Col: 0},
+		style:     lipgloss.NewStyle(),
 	}
 
 	if len(model) > 0 {
@@ -242,6 +244,8 @@ func (b *Block[T]) EnabledScroll() *Block[T] {
 		return b
 	}
 
+	b.scroll = true
+
 	v := viewport.New(
 		viewport.WithWidth(b.size.Width),
 		viewport.WithHeight(b.size.Height),
@@ -317,9 +321,13 @@ func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return b, tea.Batch(cmds...)
 }
 
+func (b *Block[T]) Layer() *lipgloss.Layer {
+	content := b.View().Content
+	return lipgloss.NewLayer(content).ID(b.name)
+}
+
 func (b *Block[T]) View() tea.View {
 	var content string
-	style := GetStyle()
 
 	if b.model != nil {
 		content = b.model.current.View().Content
@@ -327,7 +335,10 @@ func (b *Block[T]) View() tea.View {
 		content = b.render()
 	}
 
-	content = style.Content.
+	s := GetStyle().Content
+
+	content = b.style.
+		Inherit(s).
 		Width(b.size.Width).
 		Height(b.size.Height).
 		Render(content)
@@ -367,19 +378,20 @@ func (b *Block[T]) render() string {
 
 			innerWidth := cellWidth - lipgloss.Width(cursorLeft+cursorRight)
 
-			label := lipgloss.PlaceHorizontal(
-				innerWidth,
-				lipgloss.Left,
-				item.Label,
-			)
+			// label := lipgloss.PlaceHorizontal(
+			// 	innerWidth,
+			// 	lipgloss.Left,
+			// 	item.Label,
+			// )
 			var cell string
 			var l string
 
 			if cursor == b.cursor && b.navigable {
+				label := lipgloss.PlaceHorizontal(innerWidth, lipgloss.Left, item.Label)
 				l = cursorLeft + label + cursorRight
 				cell = style.ItemSelected.Width(cellWidth).Render(l)
 			} else {
-				l = blankLeft + label + blankRight
+				l = blankLeft + item.Label + blankRight
 				cell = style.Item.Width(cellWidth).Render(l)
 			}
 
@@ -409,4 +421,24 @@ func (b *Block[T]) cellWidth() int {
 	// cursor width is already part of the render
 	cursorWidth := lipgloss.Width(style.Cursor.Left + style.Cursor.Right)
 	return max + cursorWidth
+}
+
+func (b *Block[T]) Center() *Block[T] {
+	b.style = b.style.Align(lipgloss.Center)
+	return b
+}
+
+func (b *Block[T]) Left() *Block[T] {
+	b.style = b.style.Align(lipgloss.Left)
+	return b
+}
+
+func (b *Block[T]) Right() *Block[T] {
+	b.style = b.style.Align(lipgloss.Right)
+	return b
+}
+
+func (b *Block[T]) Bottom() *Block[T] {
+	b.style = b.style.Align(lipgloss.Bottom)
+	return b
 }
