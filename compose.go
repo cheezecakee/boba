@@ -17,6 +17,7 @@ type BlockView interface {
 	Name() string
 	Clone(count int) BlockView
 	Navigable() bool
+	Layer() *lipgloss.Layer
 
 	Init() tea.Cmd
 	Update(tea.Msg) (tea.Model, tea.Cmd)
@@ -39,6 +40,9 @@ type Composite struct {
 	state  State
 	size   Size
 	row    int
+	// viewport *viewport.Model
+	scroll bool
+	style  lipgloss.Style
 	clones map[BlockView]int
 }
 
@@ -48,6 +52,7 @@ func newCompose() *Composite {
 		blocks: make(map[Cursor]BlockView),
 		index:  make(map[BlockView]Cursor),
 		clones: make(map[BlockView]int),
+		style:  lipgloss.NewStyle(),
 		row:    0,
 	}
 }
@@ -166,6 +171,19 @@ func (c *Composite) Layout() string {
 	return layout
 }
 
+// Viewport
+//
+// func (c *Composite) EnabledScroll() *Composite {
+// 	if c.scroll {
+// 		return c
+// 	}
+//
+// 	v := viewport.New()
+//
+// 	c.viewport = &v
+// 	return c
+// }
+
 // Navigation
 
 func (c *Composite) Move(dir Direction) {
@@ -221,6 +239,15 @@ func (c *Composite) Init() tea.Cmd {
 
 func (c *Composite) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	log.Printf("Composite received: %T\n", msg)
+
+	var cmds []tea.Cmd
+
+	// if c.viewport != nil {
+	// 	v, cmd := c.viewport.Update(msg)
+	// 	*c.viewport = v
+	// 	cmds = append(cmds, cmd)
+	// }
+
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if dir, ok := FocusDirKey(msg); ok {
@@ -232,7 +259,6 @@ func (c *Composite) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		c.blocks[c.cursor] = m.(BlockView)
 		return c, cmd
 	default:
-		var cmds []tea.Cmd
 		for cursor, block := range c.blocks {
 			m, cmd := block.Update(msg)
 			c.blocks[cursor] = m.(BlockView)
@@ -242,111 +268,68 @@ func (c *Composite) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func container(width, height int, block string, focused bool) string {
-	s := GetStyle()
-	if focused {
-		return s.ContainerFocused.
-			Width(width - 2).
-			Height(height - 2).
-			Render(block)
+func (c *Composite) container(layer *lipgloss.Layer, focused bool) *lipgloss.Layer {
+	if layer.GetID() == "" {
+		return layer
 	}
-	return s.Container.
-		Width(width - 2).
-		Height(height - 2).
-		Render(block)
-}
 
-func blank(width, height int) string {
-	return GetStyle().Blank.
-		Width(width).
-		Height(height).
-		Render("")
+	var s lipgloss.Style
+	if focused {
+		s = GetStyle().ContainerFocused
+	} else {
+		s = GetStyle().Container
+	}
+
+	styled := c.style.Inherit(s).Render(layer.GetContent())
+	return lipgloss.NewLayer(styled).ID(layer.GetID())
 }
 
 func (c *Composite) View() tea.View {
-	var layers []*lipgloss.Layer
-
-	startX := 0
-	startY := 0
-
-	// Compute layout width
-	totalWidth := 0
-	for _, row := range c.layout {
-		rowWidth := 0
-		for _, b := range row {
-			var content string
-			if _, ok := b.(*BlankBlock); ok {
-				content = blank(b.Size().Width, b.Size().Height)
-			} else {
-				content = container(b.Size().Width, b.Size().Height, b.View().Content, false)
-			}
-			rowWidth += lipgloss.Width(content)
-		}
-		if rowWidth > totalWidth {
-			totalWidth = rowWidth
-		}
-	}
-
-	// Column height map
-	heights := make([]int, totalWidth)
+	comp := lipgloss.NewCompositor()
+	heights := make(map[int]int)
 
 	for _, row := range c.layout {
-		x := startX
+		x := 0
 
 		for _, block := range row {
-			var content string
-			if _, ok := block.(*BlankBlock); ok {
-				content = blank(block.Size().Width, block.Size().Height)
-			} else {
-				content = container(
-					block.Size().Width,
-					block.Size().Height,
-					block.View().Content,
-					block.Focused(),
-				)
-			}
+			layer := c.container(block.Layer(), block.Focused())
 
-			w := lipgloss.Width(content)
-			h := lipgloss.Height(content)
+			w := layer.Width()
+			h := layer.Height()
 
-			// Find max height across columns this block spans
-			y := startY
-			for i := x; i < x+w && i < len(heights); i++ {
+			// find max Y across columns this block spans
+			y := 0
+			for i := x; i < x+w; i++ {
 				if heights[i] > y {
 					y = heights[i]
 				}
 			}
 
-			layers = append(layers, lipgloss.NewLayer(content).X(x).Y(y))
+			comp.AddLayers(layer.X(x).Y(y))
 
-			// Update column heights
-			for i := x; i < x+w && i < len(heights); i++ {
+			// update column heights
+			for i := x; i < x+w; i++ {
 				heights[i] = y + h
 			}
 
 			x += w
 		}
-
-		maxHeight := 0
-		for _, h := range heights {
-			if h > maxHeight {
-				maxHeight = h
-			}
-		}
-
-		c.size = Size{
-			Width:  totalWidth,
-			Height: maxHeight,
-		}
 	}
 
-	style := GetStyle()
+	bounds := comp.Bounds()
+	c.size = Size{
+		Width:  bounds.Dx(),
+		Height: bounds.Dy(),
+	}
 
-	comp := lipgloss.NewCompositor(layers...).Render()
+	rendered := comp.Render()
 
-	rendered := style.Composite.
-		Width(totalWidth).
-		Render(comp)
+	// if c.viewport != nil {
+	// 	c.viewport.SetWidth(c.size.Width)
+	// 	c.viewport.SetHeight(c.size.Height)
+	// 	c.viewport.SetContent(rendered)
+	// 	return tea.NewView(c.viewport.View())
+	// }
 
 	return tea.NewView(rendered)
 }

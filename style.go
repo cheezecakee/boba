@@ -135,17 +135,19 @@ func NewStyle(width, height int, theme Theme) Style {
 		// Components
 		Container: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(theme.Subtle).
-			Align(lipgloss.Center).
-			Padding(1),
+			BorderForeground(theme.Subtle),
+		// Align(lipgloss.Center).
+		// Padding(1),
 
 		ContainerFocused: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(theme.Primary).
-			Align(lipgloss.Center).
-			Padding(1),
+			BorderForeground(theme.Primary),
+		// Align(lipgloss.Center).
+		// Padding(1),
 
-		Blank: lipgloss.NewStyle(),
+		Blank: lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(theme.Primary),
 
 		Item: lipgloss.NewStyle().
 			Foreground(theme.Text).
@@ -159,7 +161,9 @@ func NewStyle(width, height int, theme Theme) Style {
 
 		Content: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(theme.Primary),
+			BorderForeground(theme.Danger).
+			Align(lipgloss.Center),
+
 		// Align(lipgloss.Center),
 		Composite: lipgloss.NewStyle(),
 		Viewport:  lipgloss.NewStyle(),

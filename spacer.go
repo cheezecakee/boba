@@ -1,6 +1,9 @@
 package boba
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+)
 
 type BlankBlock struct {
 	size Size
@@ -23,6 +26,14 @@ func (b *BlankBlock) Current() Cursor { return Cursor{} }
 func (b *BlankBlock) Size() Size { return b.size }
 
 func (b *BlankBlock) Name() string { return "" }
+
+func (b *BlankBlock) Layer() *lipgloss.Layer {
+	content := GetStyle().Blank.
+		Width(b.size.Width).
+		Height(b.size.Height).
+		Render("")
+	return lipgloss.NewLayer(content)
+}
 
 func (b *BlankBlock) Clone(count int) BlockView { return b }
 
