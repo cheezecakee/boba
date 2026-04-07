@@ -2,8 +2,9 @@ package boba
 
 import (
 	"fmt"
-	"log"
 
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -29,21 +30,26 @@ type State struct {
 	Direction
 }
 
+type blockRect struct {
+	X, Y, W, H int
+}
+
 type BlockRow []BlockView
 
 type Composite struct {
-	graph  *Graph
-	blocks map[Cursor]BlockView
-	index  map[BlockView]Cursor
-	layout []BlockRow
-	cursor Cursor
-	state  State
-	size   Size
-	row    int
-	// viewport *viewport.Model
-	scroll bool
-	style  lipgloss.Style
-	clones map[BlockView]int
+	graph      *Graph
+	blocks     map[Cursor]BlockView
+	index      map[BlockView]Cursor
+	layout     []BlockRow
+	cursor     Cursor
+	state      State
+	size       Size
+	row        int
+	viewport   *viewport.Model
+	scroll     bool
+	style      lipgloss.Style
+	clones     map[BlockView]int
+	blockRects map[Cursor]blockRect
 }
 
 func newCompose() *Composite {
@@ -172,17 +178,29 @@ func (c *Composite) Layout() string {
 }
 
 // Viewport
-//
-// func (c *Composite) EnabledScroll() *Composite {
-// 	if c.scroll {
-// 		return c
-// 	}
-//
-// 	v := viewport.New()
-//
-// 	c.viewport = &v
-// 	return c
-// }
+
+func (c *Composite) EnabledScroll() *Composite {
+	if c.scroll {
+		return c
+	}
+
+	c.scroll = true
+
+	v := viewport.New()
+
+	// Disable all default key bindings
+	v.KeyMap = viewport.KeyMap{
+		PageDown:     key.NewBinding(key.WithDisabled()),
+		PageUp:       key.NewBinding(key.WithDisabled()),
+		Down:         key.NewBinding(key.WithDisabled()),
+		Up:           key.NewBinding(key.WithDisabled()),
+		HalfPageUp:   key.NewBinding(key.WithDisabled()),
+		HalfPageDown: key.NewBinding(key.WithDisabled()),
+	}
+
+	c.viewport = &v
+	return c
+}
 
 // Navigation
 
@@ -219,6 +237,10 @@ func (c *Composite) Move(dir Direction) {
 	c.blocks[c.cursor].Blur()
 	c.cursor = next
 	c.blocks[c.cursor].Focus()
+
+	if c.scroll {
+		c.scrollToFocused()
+	}
 }
 
 func (c *Composite) Size() Size {
@@ -228,25 +250,25 @@ func (c *Composite) Size() Size {
 // tea.Model
 
 func (c *Composite) Init() tea.Cmd {
-	log.Println("Composite Init")
+	// log.Println("Composite Init")
 	var cmds []tea.Cmd
 	for _, block := range c.blocks {
 		cmds = append(cmds, block.Init())
 	}
-	log.Println("Batching Init cmds")
+	// log.Println("Batching Init cmds")
 	return tea.Batch(cmds...)
 }
 
 func (c *Composite) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	log.Printf("Composite received: %T\n", msg)
+	// log.Printf("Composite received: %T\n", msg)
 
 	var cmds []tea.Cmd
 
-	// if c.viewport != nil {
-	// 	v, cmd := c.viewport.Update(msg)
-	// 	*c.viewport = v
-	// 	cmds = append(cmds, cmd)
-	// }
+	if c.viewport != nil {
+		v, cmd := c.viewport.Update(msg)
+		*c.viewport = v
+		cmds = append(cmds, cmd)
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -286,7 +308,10 @@ func (c *Composite) container(layer *lipgloss.Layer, focused bool) *lipgloss.Lay
 
 func (c *Composite) View() tea.View {
 	comp := lipgloss.NewCompositor()
+	innerLayer := lipgloss.NewLayer("")
 	heights := make(map[int]int)
+
+	c.blockRects = make(map[Cursor]blockRect)
 
 	for _, row := range c.layout {
 		x := 0
@@ -305,7 +330,19 @@ func (c *Composite) View() tea.View {
 				}
 			}
 
-			comp.AddLayers(layer.X(x).Y(y))
+			l := layer.X(x).Y(y)
+
+			innerLayer.AddLayers(l)
+
+			cursor, ok := c.index[block]
+			if !ok {
+				x += w
+				continue
+			}
+
+			// log.Printf("cursor: %v\nx: %v\ny: %v\nw: %v\nh: %v\n", cursor, l.GetX(), l.GetY(), l.Width(), l.Height())
+
+			c.blockRects[cursor] = blockRect{l.GetX(), l.GetY(), l.Width(), l.Height()}
 
 			// update column heights
 			for i := x; i < x+w; i++ {
@@ -316,20 +353,62 @@ func (c *Composite) View() tea.View {
 		}
 	}
 
+	layerSize := lipgloss.NewStyle().Width(innerLayer.Width()).Height(innerLayer.Height() + (innerLayer.Height() / 6)).Render("")
+
+	rootLayer := lipgloss.NewLayer(layerSize, innerLayer)
+	comp.AddLayers(rootLayer)
 	bounds := comp.Bounds()
 	c.size = Size{
 		Width:  bounds.Dx(),
 		Height: bounds.Dy(),
 	}
 
+	// log.Println("Composite size: ", c.Size())
+	// log.Printf("Inner Layer w: %v h: %v\n", innerLayer.Width(), innerLayer.Height())
+	// log.Printf("Root Layer w: %v h: %v\n", rootLayer.Width(), rootLayer.Height())
+	// log.Println("Terminal size: ", GetStyle().Size)
+
 	rendered := comp.Render()
 
-	// if c.viewport != nil {
-	// 	c.viewport.SetWidth(c.size.Width)
-	// 	c.viewport.SetHeight(c.size.Height)
-	// 	c.viewport.SetContent(rendered)
-	// 	return tea.NewView(c.viewport.View())
-	// }
+	if c.viewport != nil {
+		c.viewport.SetWidth(GetStyle().Size.Width)
+		c.viewport.SetHeight(GetStyle().Size.Height)
+		c.viewport.SetContent(rendered)
+		return tea.NewView(c.viewport.View())
+	}
 
 	return tea.NewView(rendered)
+}
+
+func (c *Composite) scrollToFocused() {
+	if c.viewport == nil {
+		return
+	}
+
+	block, ok := c.blockRects[c.cursor]
+	if !ok {
+		return
+	}
+
+	top := c.viewport.YOffset()
+	bottom := top + c.viewport.Height()
+
+	// log.Println("view: ", c.viewport.VisibleLineCount())
+	// log.Println("total: ", c.viewport.TotalLineCount())
+
+	// log.Println("cursor: ", c.cursor)
+	// log.Printf("block Y: %v, Y offset: %v", block.Y, top)
+	// log.Printf("block H: %v, bottom: %v", block.H, bottom)
+
+	if block.Y < top {
+		overflow := top - block.Y
+		// log.Println("ScrollUp: ", overflow)
+		c.viewport.ScrollUp(overflow)
+	}
+
+	if block.Y+block.H > bottom {
+		overflow := block.Y + block.H
+		// log.Println("ScrollDown: ", overflow+block.H)
+		c.viewport.ScrollDown(overflow)
+	}
 }
