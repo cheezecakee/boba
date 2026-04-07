@@ -2,7 +2,6 @@ package boba
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"charm.land/bubbles/v2/viewport"
@@ -160,7 +159,6 @@ func (b *Block[T]) Selected() *Item {
 }
 
 // Graph builders for custom models
-// Currently only supports vertical and horizontal builds
 
 func (b *Block[T]) Grid(rows, cols int) *Block[T] {
 	if b.model != nil {
@@ -258,13 +256,13 @@ func (b *Block[T]) EnabledScroll() *Block[T] {
 // tea.Model
 
 func (b *Block[T]) Init() tea.Cmd {
-	log.Println("Block Init")
+	// log.Println("Block Init")
 	if b.model != nil {
 		if c, ok := any(&b.model.current).(Component); ok {
 			c.SetItems(b.items)
 		}
 		if initer, ok := any(b.model.current).(interface{ Init() tea.Cmd }); ok {
-			log.Println("Block returning Init cmd")
+			// log.Println("Block returning Init cmd")
 			return initer.Init()
 		}
 	}
@@ -272,7 +270,7 @@ func (b *Block[T]) Init() tea.Cmd {
 }
 
 func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	log.Printf("Block %s received: %T\n", b.name, msg)
+	// log.Printf("Block %s received: %T\n", b.name, msg)
 
 	var (
 		cmd  tea.Cmd
