@@ -16,6 +16,8 @@ type BlockView interface {
 	Current() Cursor
 	Size() Size
 	Name() string
+	SetID(id string)
+	GetID(id string) string
 	Clone(count int) BlockView
 	Navigable() bool
 	Layer() *lipgloss.Layer
@@ -37,6 +39,8 @@ type blockRect struct {
 type BlockRow []BlockView
 
 type Composite struct {
+	id string
+
 	graph      *Graph
 	blocks     map[Cursor]BlockView
 	index      map[BlockView]Cursor
@@ -110,6 +114,9 @@ func (c *Composite) addRow(blocks ...BlockView) {
 		if _, exists := c.index[b]; !exists {
 			c.blocks[cursor] = b
 			c.index[b] = cursor
+
+			b.SetID(generateBlockID(c.id, cursor))
+
 			builder.Node(cursor, NodeMeta{true})
 		}
 

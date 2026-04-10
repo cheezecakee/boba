@@ -6,6 +6,7 @@ import (
 )
 
 type BlankBlock struct {
+	id   string
 	size Size
 }
 
@@ -36,6 +37,14 @@ func (b *BlankBlock) Layer() *lipgloss.Layer {
 }
 
 func (b *BlankBlock) Clone(count int) BlockView { return b }
+
+func (b *BlankBlock) SetID(id string) {
+	b.id = id
+}
+
+func (b *BlankBlock) GetID(id string) string {
+	return b.id
+}
 
 func (b *BlankBlock) Navigable() bool { return false }
 

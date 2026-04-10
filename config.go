@@ -1,10 +1,12 @@
 package boba
 
 import (
+	"image/color"
 	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/lipgloss/v2"
 	"github.com/BurntSushi/toml"
 )
 
@@ -12,6 +14,7 @@ const (
 	configFile = "config.toml"
 	themeFile  = "theme.toml"
 	keysFile   = "keys.toml"
+	styleFile  = "style.toml"
 )
 
 type Config struct {
@@ -39,8 +42,6 @@ type KeysConfig struct {
 	Custom     map[string]KeyEntry `toml:"custom"`
 }
 
-type StyleConfig struct{}
-
 type ThemeConfig struct {
 	Active string               `toml:"active"`
 	Themes map[string]TomlTheme `toml:"themes"`
@@ -63,12 +64,14 @@ func (c *Config) load() {
 	c.loadFile(configFile, &c.App)
 	c.loadFile(themeFile, &c.Theme)
 	c.loadFile(keysFile, &c.Keys)
+	c.loadFile(styleFile, &c.Style)
 }
 
 func (c *Config) save() {
 	c.saveFile(configFile, &c.App)
 	c.saveFile(themeFile, &c.Theme)
 	c.saveFile(keysFile, &c.Keys)
+	c.saveFile(styleFile, &c.Style)
 }
 
 func (c *Config) applyKeys() {
@@ -101,6 +104,14 @@ func (c *Config) applyKeys() {
 	}
 }
 
+func (c *Config) applyStyle() {
+	t := style.Theme
+	if t == (Theme{}) {
+		t = DefaultTheme()
+	}
+	style = NewStyle(style.Size.Width, style.Size.Height, t)
+}
+
 func (c *Config) apply() {
 	switch c.Theme.Active {
 	case "light":
@@ -116,6 +127,7 @@ func (c *Config) apply() {
 		SetTheme(tomlToTheme(t))
 	}
 	c.applyKeys()
+	c.applyStyle()
 }
 
 func (c *Config) loadFile(path string, v any) {
@@ -137,7 +149,7 @@ func (c *Config) saveFile(path string, v any) {
 }
 
 func (c *Config) Empty() bool {
-	for _, path := range []string{configFile, keysFile, themeFile} {
+	for _, path := range []string{configFile, keysFile, themeFile, styleFile} {
 		info, err := os.Stat(path)
 		if os.IsNotExist(err) || info.Size() == 0 {
 			return true
@@ -177,4 +189,152 @@ func keysToConfig(k *KeyMap) KeysConfig {
 		Component:  component,
 		Custom:     map[string]KeyEntry{},
 	}
+}
+
+func (e StyleEntry) ToLipgloss(theme Theme) lipgloss.Style {
+	s := lipgloss.NewStyle()
+
+	switch e.Border {
+	case "rounded":
+		s = s.Border(lipgloss.RoundedBorder())
+	case "normal":
+		s = s.Border(lipgloss.NormalBorder())
+	case "double":
+		s = s.Border(lipgloss.DoubleBorder())
+	case "hidden":
+		s = s.Border(lipgloss.HiddenBorder())
+	}
+
+	if e.BorderColor != "" {
+		s = s.BorderForeground(resolveColor(e.BorderColor, theme))
+	}
+	if e.Foreground != "" {
+		s = s.Foreground(resolveColor(e.Foreground, theme))
+	}
+	if e.Background != "" {
+		s = s.Background(resolveColor(e.Background, theme))
+	}
+	if e.Bold {
+		s = s.Bold(true)
+	}
+
+	switch e.Align {
+	case "center":
+		s = s.Align(lipgloss.Center)
+	case "right":
+		s = s.Align(lipgloss.Right)
+	case "left":
+		s = s.Align(lipgloss.Left)
+	}
+
+	switch len(e.Padding) {
+	case 1:
+		s = s.Padding(e.Padding[0])
+	case 2:
+		s = s.Padding(e.Padding[0], e.Padding[1])
+	case 4:
+		s = s.Padding(e.Padding[0], e.Padding[1], e.Padding[2], e.Padding[3])
+	}
+
+	return s
+}
+
+func resolveColor(key string, theme Theme) color.Color {
+	switch key {
+	case "primary":
+		return theme.Primary
+	case "subtle":
+		return theme.Subtle
+	case "accent":
+		return theme.Accent
+	case "background":
+		return theme.Background
+	case "text":
+		return theme.Text
+	case "muted":
+		return theme.Muted
+	case "danger":
+		return theme.Danger
+	case "success":
+		return theme.Success
+	case "warning":
+		return theme.Warning
+	default:
+		return lipgloss.Color(key) // raw hex fallback
+	}
+}
+
+func (s *StyleConfig) ResolveBlock(screenName, blockName string, theme Theme) lipgloss.Style {
+	base := s.Components.Container.ToLipgloss(theme)
+
+	// global block override
+	if entry, ok := s.Blocks[blockName]; ok {
+		base = base.Inherit(entry.ToLipgloss(theme))
+	}
+
+	// scoped screen block override
+	if screen, ok := s.Screens[screenName]; ok {
+		if entry, ok := screen.Blocks[blockName]; ok {
+			base = base.Inherit(entry.ToLipgloss(theme))
+		}
+	}
+
+	return base
+}
+
+//======= STYLE CONFIG ========//
+
+type StyleConfig struct {
+	Global     GlobalConfig                 `toml:"global"`
+	Sections   SectionsConfig               `toml:"sections"`
+	Elements   ElementsConfig               `toml:"elements"`
+	Components ComponentsConfig             `toml:"components"`
+	Blocks     map[string]StyleEntry        `toml:"blocks"`  // global named blocks
+	Screens    map[string]ScreenStyleConfig `toml:"screens"` // scoped overrides
+}
+
+type StyleEntry struct {
+	Border      string `toml:"border"`       // "rounded", "normal", "double", "hidden", "none"
+	BorderColor string `toml:"border_color"` // theme key: "primary", "subtle", "accent" or hex
+	Foreground  string `toml:"foreground"`   // theme key or hex
+	Background  string `toml:"background"`   // theme key or hex
+	Padding     []int  `toml:"padding"`      // [all], [v, h], [t, r, b, l]
+	Margin      []int  `toml:"margin"`
+	Align       string `toml:"align"` // "left", "center", "right"
+	Bold        bool   `toml:"bold"`
+	Width       int    `toml:"width"`
+	Height      int    `toml:"height"`
+}
+
+type GlobalConfig struct {
+	CursorLeft  string `toml:"cursor_left"`
+	CursorRight string `toml:"cursor_right"`
+}
+
+type SectionsConfig struct {
+	Header StyleEntry `toml:"header"`
+	Main   StyleEntry `toml:"main"`
+	Footer StyleEntry `toml:"footer"`
+}
+
+type ElementsConfig struct {
+	Title   StyleEntry `toml:"title"`
+	Text    StyleEntry `toml:"text"`
+	Label   StyleEntry `toml:"label"`
+	Badge   StyleEntry `toml:"badge"`
+	Divider StyleEntry `toml:"divider"`
+}
+
+type ComponentsConfig struct {
+	Container        StyleEntry `toml:"container"`
+	ContainerFocused StyleEntry `toml:"container_focused"`
+	Item             StyleEntry `toml:"item"`
+	ItemSelected     StyleEntry `toml:"item_selected"`
+	Blank            StyleEntry `toml:"blank"`
+	Content          StyleEntry `toml:"content"`
+}
+
+type ScreenStyleConfig struct {
+	Composite StyleEntry            `toml:"composite"`
+	Blocks    map[string]StyleEntry `toml:"blocks"`
 }

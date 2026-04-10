@@ -58,6 +58,12 @@ type Style struct {
 	PopupContent lipgloss.Style
 }
 
+// func NewStyle(width, height int, theme Theme, cfg StyleConfig) Style { // cfg overrides defaults
+// 	s := DefaultStyle(width, height, theme)
+// 	// apply cfg overrides on top
+// 	return s
+// }
+
 func NewStyle(width, height int, theme Theme) Style {
 	size := Size{Width: width, Height: height}
 

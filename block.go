@@ -19,6 +19,7 @@ type model[T BubbleModel[T]] struct {
 }
 
 type Block[T BubbleModel[T]] struct {
+	id        string
 	name      string
 	items     Items
 	Graph     *Graph
@@ -123,6 +124,14 @@ func (b *Block[T]) SetItems(items Items) *Block[T] {
 func (b *Block[T]) Display() *Block[T] {
 	b.navigable = false
 	return b
+}
+
+func (b *Block[T]) SetID(id string) {
+	b.id = id
+}
+
+func (b *Block[T]) GetID(id string) string {
+	return b.id
 }
 
 // Clone is not currently completed
@@ -321,7 +330,7 @@ func (b *Block[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (b *Block[T]) Layer() *lipgloss.Layer {
 	content := b.View().Content
-	return lipgloss.NewLayer(content).ID(b.name)
+	return lipgloss.NewLayer(content).ID(b.id)
 }
 
 func (b *Block[T]) View() tea.View {

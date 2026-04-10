@@ -60,7 +60,7 @@ Available item types:
 - Display — render a static item with no action
 
 ### Create a Block 
-Blocks render items and manage selection. Think of blocks as components. Blocks can also hold pre-existing bubbles models.
+Blocks render items and manage selection. Think of blocks as component. Blocks can also hold pre-existing bubbles models.
 ```go 
 block := boba.NewBlock[tea.Model](
 	items,
@@ -109,7 +109,7 @@ For more complete applications, see the `examples/` directory.
 
 ### Run the App
 
-Boba includes bubbles components with minimal setup without hidenring configuration. 
+Boba includes bubbles component with minimal setup without hidenring configuration. 
 
 # License
 

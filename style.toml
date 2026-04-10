@@ -1,0 +1,135 @@
+[global]
+  cursor_left = ""
+  cursor_right = ""
+
+[sections]
+  [sections.header]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [sections.main]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [sections.footer]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+
+[elements]
+  [elements.title]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [elements.text]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [elements.label]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [elements.badge]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [elements.divider]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+
+[components]
+  [components.container]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [components.container_focused]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [components.item]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [components.item_selected]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [components.blank]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0
+  [components.content]
+    border = ""
+    border_color = ""
+    foreground = ""
+    background = ""
+    align = ""
+    bold = false
+    width = 0
+    height = 0

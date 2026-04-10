@@ -69,9 +69,18 @@ func getRoot() *Root {
 // ===================Sections======================//
 
 type Section struct {
+	id      string
 	tag     SectionTag
 	content []any
 	style   lipgloss.Style
+}
+
+func (s *Section) render() string {
+	return s.build()
+}
+
+func (s *Section) layer() *lipgloss.Layer {
+	return lipgloss.NewLayer(s.build()).ID(s.id)
 }
 
 func (s *Section) Padding(values ...int) *Section {
@@ -111,15 +120,15 @@ func (s *Section) build() string {
 }
 
 func Header(content ...any) *Section {
-	return &Section{tag: HeaderTag, content: content, style: GetStyle().Header}
+	return &Section{id: LayerHeader, tag: HeaderTag, content: content, style: GetStyle().Header}
 }
 
 func Main(content ...any) *Section {
-	return &Section{tag: MainTag, content: content, style: GetStyle().Main}
+	return &Section{id: LayerMain, tag: MainTag, content: content, style: GetStyle().Main}
 }
 
 func Footer(content ...any) *Section {
-	return &Section{tag: FooterTag, content: content, style: GetStyle().Footer}
+	return &Section{id: LayerFooter, tag: FooterTag, content: content, style: GetStyle().Footer}
 }
 
 //====================Render=========================//

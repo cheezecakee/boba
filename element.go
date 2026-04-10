@@ -10,17 +10,23 @@ import (
 // Element is anything that can be rendered inside a section.
 type Element interface {
 	render() string
+	layer() *lipgloss.Layer
 }
 
 //================== Text Elements ==================//
 
 type textElement struct {
+	id      string
 	content string
 	style   lipgloss.Style
 }
 
 func (t *textElement) render() string {
 	return t.style.Render(t.content)
+}
+
+func (t *textElement) layer() *lipgloss.Layer {
+	return lipgloss.NewLayer(t.render()).ID(t.id)
 }
 
 // Chainable style methods
@@ -90,36 +96,37 @@ func (t *textElement) Padding(values ...int) *textElement {
 // Element constructors
 
 func Title(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().Title}
+	return &textElement{id: LayerTitle, content: s, style: GetStyle().Title}
 }
 
 func Text(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().Text}
+	return &textElement{id: LayerText, content: s, style: GetStyle().Text}
 }
 
 func Label(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().Label}
+	return &textElement{id: LayerLabel, content: s, style: GetStyle().Label}
 }
 
 func Badge(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().Badge}
+	return &textElement{id: LayerBadge, content: s, style: GetStyle().Badge}
 }
 
 func Error(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().ErrorEl}
+	return &textElement{id: LayerError, content: s, style: GetStyle().ErrorEl}
 }
 
 func SuccessText(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().SuccessEl}
+	return &textElement{id: LayerSuccess, content: s, style: GetStyle().SuccessEl}
 }
 
 func WarningText(s string) *textElement {
-	return &textElement{content: s, style: GetStyle().WarningEl}
+	return &textElement{id: LayerWarning, content: s, style: GetStyle().WarningEl}
 }
 
 //==================Divider Element==================//
 
 type dividerElement struct {
+	id    string
 	char  string
 	style lipgloss.Style
 }
@@ -127,6 +134,10 @@ type dividerElement struct {
 func (d *dividerElement) render() string {
 	width := GetStyle().Size.Width
 	return d.style.Render(strings.Repeat(d.char, width))
+}
+
+func (d *dividerElement) layer() *lipgloss.Layer {
+	return lipgloss.NewLayer(d.render()).ID(d.id)
 }
 
 func (d *dividerElement) Character(c string) *dividerElement {
@@ -140,7 +151,7 @@ func (d *dividerElement) Color(c color.Color) *dividerElement {
 }
 
 func Divider() *dividerElement {
-	return &dividerElement{char: "─", style: GetStyle().Divider}
+	return &dividerElement{id: LayerDivider, char: "─", style: GetStyle().Divider}
 }
 
 //=================Spacer Element=================//
@@ -151,6 +162,10 @@ type spacerElement struct {
 
 func (s *spacerElement) render() string {
 	return strings.Repeat("\n", s.lines)
+}
+
+func (s *spacerElement) layer() *lipgloss.Layer {
+	return lipgloss.NewLayer(s.render())
 }
 
 func Spacer(n int) *spacerElement {
